@@ -3,8 +3,6 @@
 The server uses Clickhouse database to query and return data to the client.
 See https://github.com/fastnear/clickhouse-provider/tree/explorer for the Clickhouse database setup.
 
-## API
-
 The following API endpoints are available:
 
 - Transactions
@@ -12,7 +10,7 @@ The following API endpoints are available:
 - Block and latest blocks
 - Receipts
 
-### Transactions
+## Transactions
 
 **POST** `/v0/transactions`
 
@@ -695,9 +693,7 @@ http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c
 
 </details>
 
----
-
-### Accounts
+## Accounts
 
 **POST** `/v0/account`
 
@@ -2405,9 +2401,7 @@ http post http://localhost:3000/v0/account account_id:='"near"' max_block_height
 
 </details>
 
----
-
-### Block
+## Block
 
 **POST** `/v0/block`
 
@@ -2601,9 +2595,7 @@ http post http://localhost:3000/v0/block block_height:=9823941
 
 </details>
 
----
-
-### Latest Blocks
+## Latest Blocks
 
 **POST** `/v0/block`
 
@@ -2662,9 +2654,7 @@ http post http://localhost:3000/v0/blocks/last
 
 </details>
 
----
-
-### Receipt
+## Receipt
 
 **POST** `/v0/receipt`
 
@@ -2843,8 +2833,5 @@ http post http://localhost:3000/v0/receipt receipt_id:='"Fgtwfcbt6p1bVTBEeycKaHa
 
 </details>
 
+
 ---
-
-## Usage
-
-The API and the server are currently under development and are not yet available for public use.
