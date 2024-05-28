@@ -695,6 +695,8 @@ http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c
 
 </details>
 
+---
+
 ### Accounts
 
 **POST** `/v0/account`
@@ -2403,6 +2405,8 @@ http post http://localhost:3000/v0/account account_id:='"near"' max_block_height
 
 </details>
 
+---
+
 ### Block
 
 **POST** `/v0/block`
@@ -2597,6 +2601,8 @@ http post http://localhost:3000/v0/block block_height:=9823941
 
 </details>
 
+---
+
 ### Latest Blocks
 
 **POST** `/v0/block`
@@ -2655,6 +2661,8 @@ http post http://localhost:3000/v0/blocks/last
 ```
 
 </details>
+
+---
 
 ### Receipt
 
@@ -2834,6 +2842,8 @@ http post http://localhost:3000/v0/receipt receipt_id:='"Fgtwfcbt6p1bVTBEeycKaHa
 ```
 
 </details>
+
+---
 
 ## Usage
 
