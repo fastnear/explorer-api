@@ -1,0 +1,93 @@
+mod api;
+mod cache;
+mod click;
+mod transactions;
+
+use dotenv::dotenv;
+use std::env;
+
+use crate::click::ClickDB;
+use crate::transactions::*;
+use actix_cors::Cors;
+use actix_web::http::header;
+use actix_web::{get, middleware, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use near_primitives::hash::CryptoHash;
+use near_primitives::types::{AccountId, BlockHeight};
+use tracing_subscriber::EnvFilter;
+
+const PROJECT_ID: &str = "server";
+
+#[derive(Clone)]
+pub struct AppState {
+    pub redis_client: redis::Client,
+    pub click_db: ClickDB,
+}
+
+async fn greet() -> impl Responder {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body("It's FAST!")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    openssl_probe::init_ssl_cert_env_vars();
+    dotenv().ok();
+
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env())
+        // .with_env_filter(EnvFilter::new("debug"))
+        .with_writer(std::io::stderr)
+        .init();
+
+    let redis_client =
+        redis::Client::open(env::var("REDIS_URL").expect("Missing REDIS_URL env var"))
+            .expect("Failed to connect to Redis");
+
+    let click_db = ClickDB::new();
+    click_db
+        .verify_connection()
+        .await
+        .expect("Failed to connect to Clickhouse");
+
+    let bind_address = format!("127.0.0.1:{}", env::var("PORT").unwrap());
+    tracing::info!(target: PROJECT_ID, "Listening on {}", bind_address);
+
+    HttpServer::new(move || {
+        // Configure CORS middleware
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allowed_methods(vec!["GET"])
+            .allowed_headers(vec![
+                header::CONTENT_TYPE,
+                header::AUTHORIZATION,
+                header::ACCEPT,
+            ])
+            .max_age(3600)
+            .supports_credentials();
+
+        let api_v0 = web::scope("/v0")
+            .service(api::v0::get_transactions)
+            .service(api::v0::get_account)
+            .service(api::v0::get_block)
+            .service(api::v0::get_last_blocks)
+            .service(api::v0::get_receipt);
+        App::new()
+            .app_data(web::Data::new(AppState {
+                redis_client: redis_client.clone(),
+                click_db: click_db.clone(),
+            }))
+            .wrap(cors)
+            .wrap(middleware::Logger::new(
+                "%{r}a \"%r\"	%s %b \"%{Referer}i\" \"%{User-Agent}i\" %T",
+            ))
+            .wrap(tracing_actix_web::TracingLogger::default())
+            .service(api_v0)
+            .route("/", web::get().to(greet))
+    })
+    .bind(bind_address)?
+    .run()
+    .await?;
+
+    Ok(())
+}
