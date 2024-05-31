@@ -163,12 +163,7 @@ pub mod v0 {
         let blocks = app_state.click_db.get_last_block_txs_count(10).await?;
 
         Ok(web::Json(json!({
-            "blocks": blocks.iter().map(|(block_height, txs_count)| {
-                json!({
-                    "block_height": block_height,
-                    "txs_count": txs_count,
-                })
-            }).collect::<Vec<_>>()
+            "blocks": blocks,
         })))
     }
 

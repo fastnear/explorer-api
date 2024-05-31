@@ -2,11 +2,20 @@ use crate::*;
 
 use clickhouse::{Client, Row};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use std::env;
 
 pub const CLICKHOUSE_TARGET: &str = "clickhouse";
 const ACCOUNT_DEFAULT_LIMIT: usize = 200;
+
+#[derive(Row, Deserialize, Serialize, Debug, Clone)]
+pub struct BlocksWithTxCount {
+    pub block_height: u64,
+    pub txs_count: u64,
+    pub block_timestamp: u64,
+    pub block_hash: String,
+}
 
 #[derive(Clone)]
 pub struct ClickDB {
@@ -131,7 +140,7 @@ impl ClickDB {
     pub async fn get_last_block_txs_count(
         &self,
         limit: usize,
-    ) -> clickhouse::error::Result<Vec<(BlockHeight, u64)>> {
+    ) -> clickhouse::error::Result<Vec<BlocksWithTxCount>> {
         let query = format!(
             "WITH last_blocks AS (
                 SELECT DISTINCT block_height
@@ -141,7 +150,9 @@ impl ClickDB {
             )
             SELECT
                 block_height,
-                count() as txs_count
+                count() as txs_count,
+                any(block_timestamp) as block_timestamp,
+                any(block_hash) as block_hash
             FROM
                 block_txs
             WHERE
@@ -152,8 +163,7 @@ impl ClickDB {
                 block_height DESC",
             limit
         );
-        let rows = self.client.query(&query).fetch_all::<(u64, u64)>().await?;
-        Ok(rows)
+        self.read_rows(&query).await
     }
 
     pub async fn get_tx_for_receipt(

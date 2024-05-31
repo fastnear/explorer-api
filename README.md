@@ -2609,7 +2609,11 @@ The associated transactions are transactions that originated in the block or had
 
 #### Output
 
-- `blocks` - The list of transactions associated with the last 5 blocks.
+- `blocks` - The list of the last 10 blocks and transaction counts. Includes:
+  - `block_hash` - The block hash.
+  - `block_height` - The block height.
+  - `block_timestamp` - The block timestamp in nanoseconds.
+  - `txs_count` - The number of associated transactions for the block
 
 #### Example
 
@@ -2624,44 +2628,64 @@ http post http://localhost:3000/v0/blocks/last
 {
   "blocks": [
     {
-      "block_height": 120138910,
-      "txs_count": 297
+      "block_hash": "57DtQ9JSuiF4YnNuLkKxUdVE5DWGKfeNfJqzpqzunn6u",
+      "block_height": 120153000,
+      "block_timestamp": 1717182115682386560,
+      "txs_count": 104
     },
     {
-      "block_height": 120138909,
-      "txs_count": 412
+      "block_hash": "CG9FAixL3xohtDJtibxSxyNwkpyW4ndcHpRjRFrZXzPm",
+      "block_height": 120152999,
+      "block_timestamp": 1717182114391384635,
+      "txs_count": 186
     },
     {
-      "block_height": 120138908,
-      "txs_count": 560
+      "block_hash": "4Mcu5i3txEer5oWkC1WoqLMJdpMFAXMMhCn8fUevc3Q5",
+      "block_height": 120152998,
+      "block_timestamp": 1717182113137503632,
+      "txs_count": 315
     },
     {
-      "block_height": 120138907,
-      "txs_count": 541
+      "block_hash": "GsW2HGLaWvhkg6hAFJxnL8mCUwp3MveoaxdNAhyJ5TJk",
+      "block_height": 120152997,
+      "block_timestamp": 1717182111869198228,
+      "txs_count": 378
     },
     {
-      "block_height": 120138906,
-      "txs_count": 578
+      "block_hash": "3yTBuwvZHnEDCrbCJF77ScVuxtrY7VBjWNP1b4KHsRwb",
+      "block_height": 120152996,
+      "block_timestamp": 1717182110830816530,
+      "txs_count": 355
     },
     {
-      "block_height": 120138905,
-      "txs_count": 706
+      "block_hash": "8zfCnpaeSeXJ7MNzg8xvGEQiPpNoDC8fWqHWZp5guuSn",
+      "block_height": 120152995,
+      "block_timestamp": 1717182109815921046,
+      "txs_count": 360
     },
     {
-      "block_height": 120138904,
-      "txs_count": 821
+      "block_hash": "9GvjxYB5R9CLrogiZatXtCZ4jFVjtzrYqxskaNYG8qTn",
+      "block_height": 120152994,
+      "block_timestamp": 1717182108789884315,
+      "txs_count": 330
     },
     {
-      "block_height": 120138903,
-      "txs_count": 828
+      "block_hash": "4V5PgLLAr5TbRqMZgVhy5h8e8sPWn8AgdHJG45dcGhPK",
+      "block_height": 120152993,
+      "block_timestamp": 1717182107691236770,
+      "txs_count": 366
     },
     {
-      "block_height": 120138902,
-      "txs_count": 731
+      "block_hash": "32tUbpRLKZ4C8wMD88EKqSbJDA2oDXyAK1vrBt3JvVzb",
+      "block_height": 120152992,
+      "block_timestamp": 1717182106546208694,
+      "txs_count": 381
     },
     {
-      "block_height": 120138901,
-      "txs_count": 748
+      "block_hash": "6yFba9MHoZBbfzTRQaE394JjdeNLdYr944fDQhhLnwGY",
+      "block_height": 120152991,
+      "block_timestamp": 1717182105425344712,
+      "txs_count": 393
     }
   ]
 }
