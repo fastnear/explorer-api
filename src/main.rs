@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
         // Configure CORS middleware
         let cors = Cors::default()
             .allow_any_origin()
-            .allowed_methods(vec!["GET"])
+            .allowed_methods(vec!["GET", "POST"])
             .allowed_headers(vec![
                 header::CONTENT_TYPE,
                 header::AUTHORIZATION,
