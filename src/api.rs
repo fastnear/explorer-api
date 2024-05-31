@@ -160,10 +160,15 @@ pub mod v0 {
         _request: HttpRequest,
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
-        let block_txs = app_state.click_db.get_last_block_txs(5).await?;
+        let blocks = app_state.click_db.get_last_block_txs_count(10).await?;
 
         Ok(web::Json(json!({
-            "block_txs": block_txs,
+            "blocks": blocks.iter().map(|(block_height, txs_count)| {
+                json!({
+                    "block_height": block_height,
+                    "txs_count": txs_count,
+                })
+            }).collect::<Vec<_>>()
         })))
     }
 

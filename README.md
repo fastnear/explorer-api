@@ -2595,11 +2595,11 @@ http post http://localhost:3000/v0/block block_height:=9823941
 
 </details>
 
-## Latest Blocks
+## Last Blocks
 
-**POST** `/v0/block`
+**POST** `/v0/blocks/last`
 
-Returns the list of transactions associated with the last 5 block.
+Returns the number of associated transactions for each of the last 10 block.
 
 The associated transactions are transactions that originated in the block or had a receipt in the block.
 
@@ -2609,7 +2609,7 @@ The associated transactions are transactions that originated in the block or had
 
 #### Output
 
-- `block_txs` - The list of transactions associated with the last 5 blocks.
+- `blocks` - The list of transactions associated with the last 5 blocks.
 
 #### Example
 
@@ -2620,33 +2620,48 @@ http post http://localhost:3000/v0/blocks/last
 <details>
   <summary><b>Show Output</b></summary>
 
-```json5
+```json
 {
-  "block_txs": [
+  "blocks": [
     {
-      "block_hash": "CEjUM9Y7rp2Q5C3nhvGhCj3Bty7hmTHx3XCYGyCi3fSu",
-      "block_height": 98553996,
-      "block_timestamp": 1691743878299830381,
-      "signer_id": "relay.aurora",
-      "transaction_hash": "4yh91hCRVjb19idD3Uu1NK5S3LWZitVTtqzFbuWTAYmZ",
-      "tx_block_height": 98553996
+      "block_height": 120138910,
+      "txs_count": 297
     },
     {
-      "block_hash": "CEjUM9Y7rp2Q5C3nhvGhCj3Bty7hmTHx3XCYGyCi3fSu",
-      "block_height": 98553996,
-      "block_timestamp": 1691743878299830381,
-      "signer_id": "relay.aurora",
-      "transaction_hash": "7HmxJcU8KhXTV8Nv3ZZJQsAykABm3qHCrCo7Lcepth5",
-      "tx_block_height": 98553995
+      "block_height": 120138909,
+      "txs_count": 412
     },
-    // ...
     {
-      "block_hash": "BG3nW9KLx3rN8Vif1v85AmLzwJH7EnDjrS6iFjq7bfUc",
-      "block_height": 98554000,
-      "block_timestamp": 1691743883096512315,
-      "signer_id": "relay.aurora",
-      "transaction_hash": "ES4DsW2hNahgj3Q6hTjXi8mGnfTF99Qx9jA8FxZhesCV",
-      "tx_block_height": 98553998
+      "block_height": 120138908,
+      "txs_count": 560
+    },
+    {
+      "block_height": 120138907,
+      "txs_count": 541
+    },
+    {
+      "block_height": 120138906,
+      "txs_count": 578
+    },
+    {
+      "block_height": 120138905,
+      "txs_count": 706
+    },
+    {
+      "block_height": 120138904,
+      "txs_count": 821
+    },
+    {
+      "block_height": 120138903,
+      "txs_count": 828
+    },
+    {
+      "block_height": 120138902,
+      "txs_count": 731
+    },
+    {
+      "block_height": 120138901,
+      "txs_count": 748
     }
   ]
 }

@@ -105,6 +105,7 @@ impl ClickDB {
         self.read_rows(&query).await
     }
 
+    #[allow(dead_code)]
     pub async fn get_last_block_txs(
         &self,
         limit: usize,
@@ -125,6 +126,34 @@ impl ClickDB {
             limit
         );
         self.read_rows(&query).await
+    }
+
+    pub async fn get_last_block_txs_count(
+        &self,
+        limit: usize,
+    ) -> clickhouse::error::Result<Vec<(BlockHeight, u64)>> {
+        let query = format!(
+            "WITH last_blocks AS (
+                SELECT DISTINCT block_height
+                FROM block_txs
+                ORDER BY block_height DESC
+                LIMIT {}
+            )
+            SELECT
+                block_height,
+                count() as txs_count
+            FROM
+                block_txs
+            WHERE
+                block_height in last_blocks
+            GROUP BY
+                block_height
+            ORDER BY
+                block_height DESC",
+            limit
+        );
+        let rows = self.client.query(&query).fetch_all::<(u64, u64)>().await?;
+        Ok(rows)
     }
 
     pub async fn get_tx_for_receipt(
