@@ -129,7 +129,7 @@ pub mod v0 {
 
     #[derive(Debug, Deserialize)]
     pub struct BlockInput {
-        pub block_height: BlockHeight,
+        pub block_id: BlockId,
     }
 
     #[post("/block")]
@@ -138,8 +138,8 @@ pub mod v0 {
         input: web::Json<BlockInput>,
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
-        let BlockInput { block_height } = input.into_inner();
-        let block_txs = app_state.click_db.get_block_txs(block_height).await?;
+        let BlockInput { block_id } = input.into_inner();
+        let block_txs = app_state.click_db.get_block_txs(block_id).await?;
         let tx_hashes = block_txs
             .iter()
             .map(|row| row.transaction_hash.clone())

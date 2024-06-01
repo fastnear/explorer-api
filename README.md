@@ -2405,13 +2405,14 @@ http post http://localhost:3000/v0/account account_id:='"near"' max_block_height
 
 **POST** `/v0/block`
 
-Returns the list of transactions associated with a block at the given block height.
+Returns the list of transactions associated with a block at the given block ID.
 
 The associated transactions are transactions that originated in the block or had a receipt in the block.
 
 #### Input
 
-- `block_height`: The block height of the block to query.
+- `block_id`: Either the block height (if an integer is given) or the block hash (if a string is given) of the block to
+  query.
 
 #### Output
 
@@ -2423,7 +2424,184 @@ The associated transactions are transactions that originated in the block or had
 Get the transactions associated with block 9823941.
 
 ```bash
-http post http://localhost:3000/v0/block block_height:=9823941
+http post http://localhost:3000/v0/block block_id:=9823941
+```
+
+<details>
+  <summary><b>Show Output</b></summary>
+
+```json
+{
+  "block_txs": [
+    {
+      "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
+      "block_height": 9823941,
+      "block_timestamp": 1595371606784154928,
+      "signer_id": "near",
+      "transaction_hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
+      "tx_block_height": 9823941
+    }
+  ],
+  "transactions": [
+    {
+      "data_receipts": [],
+      "execution_outcome": {
+        "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
+        "id": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
+        "outcome": {
+          "executor_id": "near",
+          "gas_burnt": 424555062500,
+          "logs": [],
+          "metadata": {
+            "gas_profile": null,
+            "version": 1
+          },
+          "receipt_ids": [
+            "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK"
+          ],
+          "status": {
+            "SuccessReceiptId": "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK"
+          },
+          "tokens_burnt": "424555062500000000000"
+        },
+        "proof": []
+      },
+      "receipts": [
+        {
+          "execution_outcome": {
+            "block_hash": "EHQNSBxA43BSXGLZSetrH9hZLxbVuEPHRdRcEcBmTV7A",
+            "id": "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK",
+            "outcome": {
+              "executor_id": "fresh.near",
+              "gas_burnt": 424555062500,
+              "logs": [],
+              "metadata": {
+                "gas_profile": null,
+                "version": 1
+              },
+              "receipt_ids": [
+                "GopsQ9mq8NDKZYuXFzxJuCeop35fEa4jt8RJMJuhW5ZB"
+              ],
+              "status": {
+                "SuccessValue": ""
+              },
+              "tokens_burnt": "424555062500000000000"
+            },
+            "proof": []
+          },
+          "receipt": {
+            "predecessor_id": "near",
+            "receipt": {
+              "Action": {
+                "actions": [
+                  "CreateAccount",
+                  {
+                    "Transfer": {
+                      "deposit": "1000000000000000000000000"
+                    }
+                  },
+                  {
+                    "AddKey": {
+                      "access_key": {
+                        "nonce": 0,
+                        "permission": "FullAccess"
+                      },
+                      "public_key": "ed25519:39mtn6H92UR82avZx8bvyNZ2UuCHL2JnCxMecM9dUMQa"
+                    }
+                  }
+                ],
+                "gas_price": "1030000000",
+                "input_data_ids": [],
+                "output_data_receivers": [],
+                "signer_id": "near",
+                "signer_public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU"
+              }
+            },
+            "receipt_id": "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK",
+            "receiver_id": "fresh.near"
+          }
+        },
+        {
+          "execution_outcome": {
+            "block_hash": "DwQ3D1PhftrkZ4h9B2RJkaCTy1VJU5aKRLbKdyr9LUft",
+            "id": "GopsQ9mq8NDKZYuXFzxJuCeop35fEa4jt8RJMJuhW5ZB",
+            "outcome": {
+              "executor_id": "near",
+              "gas_burnt": 0,
+              "logs": [],
+              "metadata": {
+                "gas_profile": null,
+                "version": 1
+              },
+              "receipt_ids": [],
+              "status": {
+                "SuccessValue": ""
+              },
+              "tokens_burnt": "0"
+            },
+            "proof": []
+          },
+          "receipt": {
+            "predecessor_id": "system",
+            "receipt": {
+              "Action": {
+                "actions": [
+                  {
+                    "Transfer": {
+                      "deposit": "12736651875000000000"
+                    }
+                  }
+                ],
+                "gas_price": "0",
+                "input_data_ids": [],
+                "output_data_receivers": [],
+                "signer_id": "near",
+                "signer_public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU"
+              }
+            },
+            "receipt_id": "GopsQ9mq8NDKZYuXFzxJuCeop35fEa4jt8RJMJuhW5ZB",
+            "receiver_id": "near"
+          }
+        }
+      ],
+      "transaction": {
+        "actions": [
+          "CreateAccount",
+          {
+            "Transfer": {
+              "deposit": "1000000000000000000000000"
+            }
+          },
+          {
+            "AddKey": {
+              "access_key": {
+                "nonce": 0,
+                "permission": "FullAccess"
+              },
+              "public_key": "ed25519:39mtn6H92UR82avZx8bvyNZ2UuCHL2JnCxMecM9dUMQa"
+            }
+          }
+        ],
+        "hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
+        "nonce": 17,
+        "public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU",
+        "receiver_id": "fresh.near",
+        "signature": "ed25519:fvS1kYu9KseAH19eYDrrzPSonTCSvbUPa5f2gNbNBfnX82B5d4Xz4J7abZ7eBULPWRdwRaK6BR9uxXy7g3kXNSF",
+        "signer_id": "near"
+      }
+    }
+  ]
+}
+```
+
+</details>
+
+#### Example
+
+Get the transactions associated with block hash `EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF`.
+
+```bash
+http post http://localhost:3000/v0/block block_id:='"EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF"'
 ```
 
 <details>

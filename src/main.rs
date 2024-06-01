@@ -1,16 +1,16 @@
 mod api;
 mod cache;
 mod click;
-mod transactions;
+mod types;
 
 use dotenv::dotenv;
 use std::env;
 
 use crate::click::ClickDB;
-use crate::transactions::*;
+use crate::types::*;
 use actix_cors::Cors;
 use actix_web::http::header;
-use actix_web::{get, middleware, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer, Responder};
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::{AccountId, BlockHeight};
 use tracing_subscriber::EnvFilter;

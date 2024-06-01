@@ -2,20 +2,10 @@ use crate::*;
 
 use clickhouse::{Client, Row};
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use std::env;
 
-pub const CLICKHOUSE_TARGET: &str = "clickhouse";
 const ACCOUNT_DEFAULT_LIMIT: usize = 200;
-
-#[derive(Row, Deserialize, Serialize, Debug, Clone)]
-pub struct BlocksWithTxCount {
-    pub block_height: u64,
-    pub txs_count: u64,
-    pub block_timestamp: u64,
-    pub block_hash: String,
-}
 
 #[derive(Clone)]
 pub struct ClickDB {
@@ -105,12 +95,25 @@ impl ClickDB {
 
     pub async fn get_block_txs(
         &self,
-        block_height: BlockHeight,
+        block_id: BlockId,
     ) -> clickhouse::error::Result<Vec<BlockTxRow>> {
-        let query = format!(
-            "select * from block_txs where block_height = {}",
-            block_height
-        );
+        let query = match block_id {
+            BlockId::Hash(hash) => {
+                format!(
+                    "WITH block_heights AS (
+                        SELECT DISTINCT block_height
+                        FROM block_txs
+                        WHERE block_hash = '{}'
+                        LIMIT 1
+                    )
+                    SELECT * FROM block_txs WHERE block_height IN block_heights",
+                    hash.to_string()
+                )
+            }
+            BlockId::Height(height) => {
+                format!("SELECT * FROM block_txs WHERE block_height = {}", height)
+            }
+        };
         self.read_rows(&query).await
     }
 
