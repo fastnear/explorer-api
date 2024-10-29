@@ -35,79 +35,70 @@ http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c
 <details>
   <summary><b>Show Output</b></summary>
 
-```json
+```json5
 {
-  "transactions": [{
-    "data_receipts": [{
-      "data_id": "D4yvigdBjzYU1g2N9hvnzkeV7MCyepnLnRETVtDu9YnV",
-      "receipt_id": "DKguTtMeWCvxyrLPGU9x1rCk5x8msLa7tJM9Pp5AEL1A",
-      "receiver_id": "staking-pool.sweatmint.near",
-      "predecessor_id": "token.sweat",
-      "receipt": {
-        "Data": {
-          "data": "",
-          "data_id": "D4yvigdBjzYU1g2N9hvnzkeV7MCyepnLnRETVtDu9YnV"
-        }
-      }
-    }],
-    "execution_outcome": {
-      "block_hash": "8dB8ZPYrnnHrYjmNSavK7Gx2UyHLdAkc5jeFmurku5jh",
-      "id": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
-      "outcome": {
-        "executor_id": "lenguyenwin.near",
-        "gas_burnt": 2428019381096,
-        "logs": [],
-        "receipt_ids": ["H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"],
-        "status": {
-          "SuccessReceiptId": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
+  "transactions": [
+    {
+      "data_receipts": [
+        // ... multiple data receipt objects omitted
+      ],
+      "execution_outcome": {
+        "block_hash": "8dB8ZPYrnnHrYjmNSavK7Gx2UyHLdAkc5jeFmurku5jh",
+        "id": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
+        "outcome": {
+          "executor_id": "lenguyenwin.near",
+          "gas_burnt": 2428019381096,
+          "receipt_ids": ["H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"],
+          "status": {
+            "SuccessReceiptId": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
+          },
+          "tokens_burnt": "242801938109600000000"
+          // ... logs, metadata, and other outcome fields omitted
         },
-        "tokens_burnt": "242801938109600000000",
-        "metadata": {
-          "gas_profile": null,
-          "version": 1
-        }
+        "proof": [] // Proof array omitted
       },
-      "proof": []
-    },
-    "receipts": [{
-      "predecessor_id": "lenguyenwin.near",
-      "receipt": {
-        "Action": {
-          "actions": [{
-            "FunctionCall": {
-              "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-              "deposit": "1",
-              "gas": 60000000000000,
-              "method_name": "claim_stake_reward"
+      "receipts": [
+        {
+          "predecessor_id": "lenguyenwin.near",
+          "receipt": {
+            "Action": {
+              "actions": [{
+                "FunctionCall": {
+                  "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
+                  "deposit": "1",
+                  "gas": 60000000000000,
+                  "method_name": "claim_stake_reward"
+                }
+              }],
+              "gas_price": "146853372",
+              "signer_id": "lenguyenwin.near"
+              // ... input_data_ids, output_data_receivers, signer_public_key omitted
             }
-          }],
-          "gas_price": "146853372",
-          "input_data_ids": [],
-          "output_data_receivers": [],
-          "signer_id": "lenguyenwin.near",
-          "signer_public_key": "ed25519:4iW7dw89iZrYNbbewyZu2DhuRcpfiLSCqut9aT5x79B1"
+          },
+          "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ",
+          "receiver_id": "staking-pool.sweatmint.near"
         }
-      },
-      "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ",
-      "receiver_id": "staking-pool.sweatmint.near"
-    }],
-    "transaction": {
-      "actions": [{
-        "FunctionCall": {
-          "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-          "deposit": "1",
-          "gas": 60000000000000,
-          "method_name": "claim_stake_reward"
-        }
-      }],
-      "hash": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
-      "nonce": 83145267000161,
-      "public_key": "ed25519:4iW7dw89iZrYNbbewyZu2DhuRcpfiLSCqut9aT5x79B1",
-      "receiver_id": "staking-pool.sweatmint.near",
-      "signature": "ed25519:2SAM6JuqwaJzGoEQ1LxPAKQKG235tnfojFrpTiUQzqkD1rprCZdhBz5wHqYorbrcz1F1mnPFs5Kb2p7K2uxCD5Y3",
-      "signer_id": "lenguyenwin.near"
-    }
-  }]
+        // ... 7 more receipt objects omitted
+      ],
+      "transaction": {
+        "actions": [{
+          "FunctionCall": {
+            "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
+            "deposit": "1",
+            "gas": 60000000000000,
+            "method_name": "claim_stake_reward"
+          }
+        }],
+        "hash": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
+        "nonce": 83145267000161,
+        "public_key": "ed25519:4iW7dw89iZrYNbbewyZu2DhuRcpfiLSCqut9aT5x79B1",
+        "receiver_id": "staking-pool.sweatmint.near",
+        "signature": "ed25519:2SAM6JuqwaJzGoEQ1LxPAKQKG235tnfojFrpTiUQzqkD1rprCZdhBz5wHqYorbrcz1F1mnPFs5Kb2p7K2uxCD5Y3",
+        "signer_id": "lenguyenwin.near"
+      }
+    },
+    // ... another transaction omitted for brevity
+  ]
 }
 ```
 
