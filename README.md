@@ -1,5 +1,8 @@
 # FastNear Transactions API server
 
+Note, this server expects the database tables from the Clickhouse
+indexer: https://github.com/fastnear/clickhouse-provider/tree/click-dist
+
 All endpoints are POST and accept JSON body. The base path is `/v0`.
 
 ## POST `/v0/transactions`
