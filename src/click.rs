@@ -5,7 +5,6 @@ use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 use std::env;
 
-const ACCOUNT_DEFAULT_LIMIT: usize = 200;
 
 #[derive(Clone)]
 pub struct ClickDB {
@@ -69,28 +68,84 @@ impl ClickDB {
             .collect())
     }
 
+    fn account_txs_conditions(
+        account_id: &AccountId,
+        bool_filters: &[(&str, bool)],
+        from_tx_block_height: Option<BlockHeight>,
+        to_tx_block_height: Option<BlockHeight>,
+    ) -> Vec<String> {
+        let mut conditions = vec![format!("account_id = '{}'", account_id)];
+
+        for (col, val) in bool_filters {
+            conditions.push(format!("{} = {}", col, if *val { 1 } else { 0 }));
+        }
+
+        if let Some(from) = from_tx_block_height {
+            conditions.push(format!("tx_block_height >= {}", from));
+        }
+        if let Some(to) = to_tx_block_height {
+            conditions.push(format!("tx_block_height <= {}", to));
+        }
+
+        conditions
+    }
+
     pub async fn get_account_txs(
         &self,
         account_id: &AccountId,
-        max_block_height: Option<BlockHeight>,
+        bool_filters: &[(&str, bool)],
+        resume: Option<(u64, u32)>,
+        from_tx_block_height: Option<BlockHeight>,
+        to_tx_block_height: Option<BlockHeight>,
+        limit: usize,
+        desc: bool,
     ) -> clickhouse::error::Result<Vec<AccountTxRow>> {
-        let max_block_height = max_block_height.unwrap_or(u64::MAX);
+        let mut conditions =
+            Self::account_txs_conditions(account_id, bool_filters, from_tx_block_height, to_tx_block_height);
+
+        if let Some((bh, ti)) = resume {
+            if desc {
+                conditions.push(format!("(tx_block_height, tx_index) < ({}, {})", bh, ti));
+            } else {
+                conditions.push(format!("(tx_block_height, tx_index) > ({}, {})", bh, ti));
+            }
+        }
+
+        let order = if desc { "DESC" } else { "ASC" };
+        let fetch_limit = limit + 50;
         let query = format!(
-            "select account_id, transaction_hash, tx_block_height, tx_block_timestamp, tx_index from account_txs where account_id = '{}' and tx_block_height <= {} order by tx_block_height desc, tx_index desc limit {}",
-            account_id,
-            max_block_height,
-            ACCOUNT_DEFAULT_LIMIT
+            "SELECT account_id, transaction_hash, tx_block_height, tx_block_timestamp, tx_index, \
+             is_signer, is_delegated_signer, is_real_signer, is_any_signer, \
+             is_predecessor, is_explicit_refund_to, is_receiver, is_real_receiver, \
+             is_function_call, is_action_arg, is_event_log, is_success \
+             FROM account_txs \
+             WHERE {} \
+             ORDER BY tx_block_height {}, tx_index {} \
+             LIMIT {}",
+            conditions.join(" AND "),
+            order,
+            order,
+            fetch_limit
         );
-        self.read_rows(&query).await
+        let mut rows: Vec<AccountTxRow> = self.read_rows(&query).await?;
+        rows.dedup_by_key(|r| (r.tx_block_height, r.tx_index));
+        rows.truncate(limit);
+        Ok(rows)
     }
 
     pub async fn get_account_txs_count(
         &self,
         account_id: &AccountId,
+        bool_filters: &[(&str, bool)],
+        from_tx_block_height: Option<BlockHeight>,
+        to_tx_block_height: Option<BlockHeight>,
     ) -> clickhouse::error::Result<u64> {
+        let conditions =
+            Self::account_txs_conditions(account_id, bool_filters, from_tx_block_height, to_tx_block_height);
+
         let query = format!(
-            "select count() from account_txs where account_id = '{}'",
-            account_id
+            "SELECT count() FROM account_txs WHERE {}",
+            conditions.join(" AND ")
         );
         let count = self.client.query(&query).fetch_one::<u64>().await?;
         Ok(count)

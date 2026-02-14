@@ -23,6 +23,19 @@ pub struct AccountTxRow {
     pub tx_block_height: u64,
     pub tx_block_timestamp: u64,
     pub tx_index: u32,
+
+    pub is_signer: bool,
+    pub is_delegated_signer: bool,
+    pub is_real_signer: bool,
+    pub is_any_signer: bool,
+    pub is_predecessor: bool,
+    pub is_explicit_refund_to: bool,
+    pub is_receiver: bool,
+    pub is_real_receiver: bool,
+    pub is_function_call: bool,
+    pub is_action_arg: bool,
+    pub is_event_log: bool,
+    pub is_success: bool,
 }
 
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
