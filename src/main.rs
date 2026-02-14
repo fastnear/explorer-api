@@ -22,10 +22,10 @@ pub struct AppState {
     pub click_db: ClickDB,
 }
 
-async fn greet() -> impl Responder {
+async fn index() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body("It's FAST!")
+        .body(include_str!("../static/index.html"))
 }
 
 #[actix_web::main]
@@ -77,7 +77,7 @@ async fn main() -> std::io::Result<()> {
             ))
             .wrap(tracing_actix_web::TracingLogger::default())
             .service(api_v0)
-            .route("/", web::get().to(greet))
+            .route("/", web::get().to(index))
     })
     .bind(bind_address)?
     .run()

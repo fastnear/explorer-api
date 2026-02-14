@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FastNear Transactions API</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+      color: #24292e;
+      background: #fff;
+    }
+
+    h1 {
+      border-bottom: 1px solid #eaecef;
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 40px;
+      border-bottom: 1px solid #eaecef;
+      padding-bottom: 8px;
+    }
+
+    h2 code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.85em;
+    }
+
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 0.85em;
+      line-height: 1.45;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    ul {
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    strong {
+      font-weight: 600;
+    }
+
+    p code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>FastNear Transactions API server</h1>
+<p>All endpoints are POST and accept JSON body. The base path is <code>/v0</code>.</p>
+
+<h2>POST <code>/v0/transactions</code></h2>
+<p>Fetch raw transaction data by transaction hashes. Up to 20 hashes per request.</p>
+<pre><code>curl -X POST https://tx.main.fastnear.com/v0/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tx_hashes": [
+      "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
+      "D2pt9ceGUyiGdJeeZLDd3uBGHF11DmPe4aJFMaoWMmDd"
+    ]
+  }'</code></pre>
+<p>Response:</p>
+<pre><code>{
+  "transactions": [
+    { /* raw transaction data */ },
+    ...
+  ]
+}</code></pre>
+
+<h2>POST <code>/v0/account</code></h2>
+<p>Fetch account transaction history with filtering and cursor-based pagination.</p>
+<p>Returns <code>account_txs</code> (list), <code>txs_count</code> (on first page), and <code>resume_token</code> (if
+  more pages available).</p>
+
+<p><strong>Required fields:</strong></p>
+<ul>
+  <li><code>account_id</code> - the account ID</li>
+</ul>
+
+<p><strong>Optional filters:</strong></p>
+<ul>
+  <li><code>is_signer</code>, <code>is_delegated_signer</code>, <code>is_real_signer</code>, <code>is_any_signer</code>
+    - signer role filters
+  </li>
+  <li><code>is_predecessor</code>, <code>is_explicit_refund_to</code> - predecessor/refund filters</li>
+  <li><code>is_receiver</code>, <code>is_real_receiver</code> - receiver role filters</li>
+  <li><code>is_function_call</code>, <code>is_action_arg</code>, <code>is_event_log</code> - action type filters</li>
+  <li><code>is_success</code> - filter by transaction success status</li>
+</ul>
+
+<p><strong>Pagination:</strong></p>
+<ul>
+  <li><code>limit</code> - number of results (default/max: 200)</li>
+  <li><code>desc</code> - sort order (default: true)</li>
+  <li><code>from_tx_block_height</code> / <code>to_tx_block_height</code> - block height range</li>
+  <li><code>resume_token</code> - cursor token from previous response</li>
+</ul>
+
+<pre><code># Basic query
+curl -X POST https://tx.main.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near"
+  }'
+
+# Pagination with resume_token
+curl -X POST https://tx.main.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "resume_token": "796557291984781314"
+  }'
+
+# With filters
+curl -X POST https://tx.main.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "is_real_signer": true,
+    "is_success": true,
+    "limit": 50
+  }'
+
+# Block height range
+curl -X POST https://tx.main.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "from_tx_block_height": 150000000,
+    "to_tx_block_height": 151000000,
+    "desc": false
+  }'</code></pre>
+
+<p>Response (first page):</p>
+<pre><code>{
+  "txs_count": 81278,
+  "account_txs": [
+    {
+      "account_id": "...",
+      "transaction_hash": "...",
+      "tx_block_height": ...,
+      "tx_block_timestamp": "...",
+      "tx_index": ...,
+      "is_signer": ...,
+      "is_delegated_signer": ...,
+      "is_real_signer": ...,
+      "is_any_signer": ...,
+      "is_predecessor": ...,
+      "is_explicit_refund_to": ...,
+      "is_receiver": ...,
+      "is_real_receiver": ...,
+      "is_function_call": ...,
+      "is_action_arg": ...,
+      "is_event_log": ...,
+      "is_success": ...
+    },
+    ...
+  ],
+  "resume_token": "..."  // present if more pages available
+}</code></pre>
+
+<h2>POST <code>/v0/block</code></h2>
+<p>Fetch a block by height or hash. Optionally include transactions and/or receipts.</p>
+
+<p><strong>Required fields:</strong></p>
+<ul>
+  <li><code>block_id</code> - block height (number) or block hash (string)</li>
+</ul>
+
+<p><strong>Optional fields:</strong></p>
+<ul>
+  <li><code>with_transactions</code> - include block transactions (default: false)</li>
+  <li><code>with_receipts</code> - include block receipts (default: false)</li>
+</ul>
+
+<pre><code># By block height
+curl -X POST https://tx.main.fastnear.com/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 130000000
+  }'
+
+# By block hash
+curl -X POST https://tx.main.fastnear.com/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": "EeQ63DqKGRz1JPGQG7W9BpiGKmrF8ESn9nHr3djL8s1e"
+  }'
+
+# With transactions and receipts
+curl -X POST https://tx.main.fastnear.com/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 130000000,
+    "with_transactions": true,
+    "with_receipts": true
+  }'</code></pre>
+
+<p>Response (with transactions and receipts):</p>
+<pre><code>{
+  "block": {
+    "block_height": ...,
+    "prev_block_height": ...,
+    "block_hash": "...",
+    "prev_block_hash": "...",
+    "block_timestamp": "...",
+    "epoch_id": "...",
+    "next_epoch_id": "...",
+    "chunks_included": ...,
+    "author_id": "...",
+    "protocol_version": ...,
+    "gas_price": "...",
+    "block_ordinal": ...,
+    "total_supply": "...",
+    "num_transactions": ...,
+    "num_receipts": ...,
+    "gas_burnt": "...",
+    "tokens_burnt": "..."
+  },
+  "block_txs": [    // only if with_transactions: true
+    {
+      "transaction_hash": "...",
+      "signer_id": "...",
+      "tx_block_height": ...,
+      "tx_index": ...,
+      "tx_block_hash": "...",
+      "tx_block_timestamp": "...",
+      "last_block_height": ...,
+      "is_completed": ...,
+      "shard_id": ...,
+      "receiver_id": "...",
+      "signer_public_key": "...",
+      "priority_fee": ...,
+      "nonce": ...,
+      "is_relayed": ...,
+      "real_signer_id": "...",
+      "real_receiver_id": "...",
+      "is_success": ...,
+      "gas_burnt": ...,
+      "tokens_burnt": "..."
+    },
+    ...
+  ],
+  "block_receipts": [    // only if with_receipts: true
+    {
+      "receipt_id": "...",
+      "block_height": ...,
+      "block_timestamp": "...",
+      "receipt_index": ...,
+      "appear_block_height": ...,
+      "appear_receipt_index": ...,
+      "transaction_hash": "...",
+      "tx_block_height": ...,
+      "tx_block_timestamp": "...",
+      "tx_index": ...,
+      "predecessor_id": "...",
+      "receiver_id": "...",
+      "receipt_type": "...",
+      "priority": ...,
+      "shard_id": ...,
+      "is_success": ...
+    },
+    ...
+  ]
+}</code></pre>
+
+<h2>POST <code>/v0/blocks</code></h2>
+<p>Fetch a list of blocks with optional height range and pagination.</p>
+
+<p><strong>Optional fields:</strong></p>
+<ul>
+  <li><code>from_block_height</code> / <code>to_block_height</code> - block height range</li>
+  <li><code>limit</code> - number of results (default/max: 100)</li>
+  <li><code>desc</code> - sort order (default: true)</li>
+</ul>
+
+<pre><code># Latest blocks
+curl -X POST https://tx.main.fastnear.com/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+# With range and limit
+curl -X POST https://tx.main.fastnear.com/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "from_block_height": 130000000,
+    "to_block_height": 130000100,
+    "limit": 10,
+    "desc": false
+  }'</code></pre>
+
+<p>Response:</p>
+<pre><code>{
+  "blocks": [
+    {
+      "block_height": ...,
+      "prev_block_height": ...,
+      "block_hash": "...",
+      "prev_block_hash": "...",
+      "block_timestamp": "...",
+      "epoch_id": "...",
+      "next_epoch_id": "...",
+      "chunks_included": ...,
+      "author_id": "...",
+      "protocol_version": ...,
+      "gas_price": "...",
+      "block_ordinal": ...,
+      "total_supply": "...",
+      "num_transactions": ...,
+      "num_receipts": ...,
+      "gas_burnt": "...",
+      "tokens_burnt": "..."
+    },
+    ...
+  ]
+}</code></pre>
+
+<h2>POST <code>/v0/receipt</code></h2>
+<p>Fetch a receipt by ID. Returns the receipt details and the associated raw transaction.</p>
+
+<p><strong>Required fields:</strong></p>
+<ul>
+  <li><code>receipt_id</code> - the receipt hash</li>
+</ul>
+
+<pre><code>curl -X POST https://tx.main.fastnear.com/v0/receipt \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
+  }'</code></pre>
+
+<p>Response:</p>
+<pre><code>{
+  "receipt": {
+    "receipt_id": "...",
+    "block_height": ...,
+    "block_timestamp": "...",
+    "receipt_index": ...,
+    "appear_block_height": ...,
+    "appear_receipt_index": ...,
+    "transaction_hash": "...",
+    "tx_block_height": ...,
+    "tx_block_timestamp": "...",
+    "tx_index": ...,
+    "predecessor_id": "...",
+    "receiver_id": "...",
+    "receipt_type": "...",
+    "priority": ...,
+    "shard_id": ...,
+    "is_success": ...
+  },
+  "transaction": { /* raw transaction data */ }
+}</code></pre>
+
+</body>
+</html>
