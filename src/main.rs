@@ -19,14 +19,13 @@ const PROJECT_ID: &str = "server";
 
 #[derive(Clone)]
 pub struct AppState {
-    pub redis_client: redis::Client,
     pub click_db: ClickDB,
 }
 
-async fn greet() -> impl Responder {
+async fn index() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body("It's FAST!")
+        .body(include_str!("../static/index.html"))
 }
 
 #[actix_web::main]
@@ -39,10 +38,6 @@ async fn main() -> std::io::Result<()> {
         // .with_env_filter(EnvFilter::new("debug"))
         .with_writer(std::io::stderr)
         .init();
-
-    let redis_client =
-        redis::Client::open(env::var("REDIS_URL").expect("Missing REDIS_URL env var"))
-            .expect("Failed to connect to Redis");
 
     let click_db = ClickDB::new();
     click_db
@@ -70,11 +65,10 @@ async fn main() -> std::io::Result<()> {
             .service(api::v0::get_transactions)
             .service(api::v0::get_account)
             .service(api::v0::get_block)
-            .service(api::v0::get_last_blocks)
+            .service(api::v0::get_blocks)
             .service(api::v0::get_receipt);
         App::new()
             .app_data(web::Data::new(AppState {
-                redis_client: redis_client.clone(),
                 click_db: click_db.clone(),
             }))
             .wrap(cors)
@@ -83,7 +77,7 @@ async fn main() -> std::io::Result<()> {
             ))
             .wrap(tracing_actix_web::TracingLogger::default())
             .service(api_v0)
-            .route("/", web::get().to(greet))
+            .route("/", web::get().to(index))
     })
     .bind(bind_address)?
     .run()

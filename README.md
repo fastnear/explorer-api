@@ -1,670 +1,339 @@
-# FASTNEAR's Explorer API server
+# FastNear Transactions API server
 
-The server uses Clickhouse database to query and return data to the client.
-See https://github.com/fastnear/clickhouse-provider/tree/explorer for the Clickhouse database setup.
+Note, this server expects the database tables from the Clickhouse
+indexer: https://github.com/fastnear/clickhouse-provider/tree/click-dist
 
-The following API endpoints are available:
+All endpoints are POST and accept JSON body. The base path is `/v0`.
 
-- Transactions
-- Accounts
-- Block and latest blocks
-- Receipts
+## POST `/v0/transactions`
 
-## Transactions
-
-**POST** `/v0/transactions`
-
-Returns transactions by hash.
-
-#### Input
-
-- `tx_hashes`: list of transaction hashes (limit 20 hashes)
-
-#### Output
-
-- `transactions`: list of matching transactions
-
-#### Example
-
-Get two transactions by hashes:
+Fetch raw transaction data by transaction hashes. Up to 20 hashes per request.
 
 ```bash
-http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS", "D2pt9ceGUyiGdJeeZLDd3uBGHF11DmPe4aJFMaoWMmDd"]'
+curl -X POST http://localhost:3000/v0/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tx_hashes": [
+      "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
+      "D2pt9ceGUyiGdJeeZLDd3uBGHF11DmPe4aJFMaoWMmDd"
+    ]
+  }'
 ```
 
-<details>
-  <summary><b>Show Output</b></summary>
+Response:
 
 ```json5
 {
   "transactions": [
     {
-      "data_receipts": [
-        // ... multiple data receipt objects omitted
-      ],
-      "execution_outcome": {
-        "block_hash": "8dB8ZPYrnnHrYjmNSavK7Gx2UyHLdAkc5jeFmurku5jh",
-        "id": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
-        "outcome": {
-          "executor_id": "lenguyenwin.near",
-          "gas_burnt": 2428019381096,
-          "receipt_ids": ["H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"],
-          "status": {
-            "SuccessReceiptId": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
-          },
-          "tokens_burnt": "242801938109600000000"
-          // ... logs, metadata, and other outcome fields omitted
-        },
-        "proof": [] // Proof array omitted
-      },
-      "receipts": [
-        {
-          "predecessor_id": "lenguyenwin.near",
-          "receipt": {
-            "Action": {
-              "actions": [{
-                "FunctionCall": {
-                  "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-                  "deposit": "1",
-                  "gas": 60000000000000,
-                  "method_name": "claim_stake_reward"
-                }
-              }],
-              "gas_price": "146853372",
-              "signer_id": "lenguyenwin.near"
-              // ... input_data_ids, output_data_receivers, signer_public_key omitted
-            }
-          },
-          "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ",
-          "receiver_id": "staking-pool.sweatmint.near"
-        }
-        // ... 7 more receipt objects omitted
-      ],
-      "transaction": {
-        "actions": [{
-          "FunctionCall": {
-            "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-            "deposit": "1",
-            "gas": 60000000000000,
-            "method_name": "claim_stake_reward"
-          }
-        }],
-        "hash": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
-        "nonce": 83145267000161,
-        "public_key": "ed25519:4iW7dw89iZrYNbbewyZu2DhuRcpfiLSCqut9aT5x79B1",
-        "receiver_id": "staking-pool.sweatmint.near",
-        "signature": "ed25519:2SAM6JuqwaJzGoEQ1LxPAKQKG235tnfojFrpTiUQzqkD1rprCZdhBz5wHqYorbrcz1F1mnPFs5Kb2p7K2uxCD5Y3",
-        "signer_id": "lenguyenwin.near"
-      }
+      /* raw transaction data */
     },
-    // ... another transaction omitted for brevity
+    ...
   ]
 }
 ```
 
-</details>
+## POST `/v0/account`
 
-## Accounts
+Fetch account transaction history with filtering and cursor-based pagination.
 
-**POST** `/v0/account`
+Returns `account_txs` (list), `txs_count` (on first page), and `resume_token` (if more pages available).
 
-Returns the list of transaction metadata associated with the given account ID.
-Associated transactions are transactions signed by the account or transactions that are relevant to the account (e.g.
-transactions that transfer tokens to the account).
+**Required fields:**
 
-The method may take the `max_block_height` parameter to support pagination.
-If the `max_block_height` is provided, the method will return transactions with block heights less than or equal to the
-given `max_block_height`.
+- `account_id` - the account ID
 
-When `max_block_height` is not provided, the method will return the most recent transactions and the total number of
-transactions associated with the account.
+**Optional filters:**
 
-- Up to 200 transaction metadata rows will be returned.
-- Up to 20 transactions will be expanded from the matched transaction metadata rows.
+- `is_signer`, `is_delegated_signer`, `is_real_signer`, `is_any_signer` - signer role filters
+- `is_predecessor`, `is_explicit_refund_to` - predecessor/refund filters
+- `is_receiver`, `is_real_receiver` - receiver role filters
+- `is_function_call`, `is_action_arg`, `is_event_log` - action type filters
+- `is_success` - filter by transaction success status
 
-#### Input
+**Pagination:**
 
-- `account_id` - The account ID to query.
-- *(optional)* `max_block_height` - The maximum block height for the transactions to return.
-
-#### Output
-
-- `account_txs` - The list of transaction metadata rows associated with the account.
-  - `account_id` - The account ID.
-  - `signer_id` - The signer ID.
-  - `transaction_hash` - The transaction hash.
-  - `tx_block_height` - The block height of the transaction.
-  - `tx_block_timestamp` - The block timestamp of the transaction.
-- `transactions` - The list of the first 20 matching associated transactions.
-- `total_txs` - The total number of transactions associated with the account. Only returned if the `max_block_height` is
-  not provided.
-
-#### Example
-
-Get recent transactions for the `sweat_welcome.near` account:
+- `limit` - number of results (default/max: 200)
+- `desc` - sort order (default: true)
+- `from_tx_block_height` / `to_tx_block_height` - block height range
+- `resume_token` - cursor token from previous response
 
 ```bash
-http post http://localhost:3000/v0/account account_id:='"sweat_welcome.near"'
+# Basic query
+curl -X POST http://localhost:3000/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near"
+  }'
+  
+# Pagination with resume_token
+curl -X POST http://localhost:3000/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "resume_token": "796557291984781314"
+  }'
+
+# With filters
+curl -X POST http://localhost:3000/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "is_real_signer": true,
+    "is_success": true,
+    "limit": 50
+  }'
+
+# Block height range
+curl -X POST http://localhost:3000/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "intents.near",
+    "from_tx_block_height": 150000000,
+    "to_tx_block_height": 151000000,
+    "desc": false
+  }'
 ```
 
-<details>
-  <summary><b>Show Output</b></summary>
+Response (first page):
 
 ```json5
 {
+  "txs_count": 81278,
   "account_txs": [
     {
-      "account_id": "sweat_welcome.near",
-      "signer_id": "sweat_welcome.near",
-      "transaction_hash": "Er4gubtM5rUgMakSDzP9n7FVyUjZZkxsKJFCwoMywQgV",
-      "tx_block_height": 96098994,
-      "tx_block_timestamp": 1688940091339135477
+      "account_id": "...",
+      "transaction_hash": "...",
+      "tx_block_height": ...,
+      "tx_block_timestamp": "...",
+      "tx_index": ...,
+      "is_signer": ...,
+      "is_delegated_signer": ...,
+      "is_real_signer": ...,
+      "is_any_signer": ...,
+      "is_predecessor": ...,
+      "is_explicit_refund_to": ...,
+      "is_receiver": ...,
+      "is_real_receiver": ...,
+      "is_function_call": ...,
+      "is_action_arg": ...,
+      "is_event_log": ...,
+      "is_success": ...
     },
-    // ... more transaction metadata rows
+    ...
   ],
-  "transactions": [
+  "resume_token": "..."
+  // present if more pages available
+}
+```
+
+## POST `/v0/block`
+
+Fetch a block by height or hash. Optionally include transactions and/or receipts.
+
+**Required fields:**
+
+- `block_id` - block height (number) or block hash (string)
+
+**Optional fields:**
+
+- `with_transactions` - include block transactions (default: false)
+- `with_receipts` - include block receipts (default: false)
+
+```bash
+# By block height
+curl -X POST http://localhost:3000/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 130000000
+  }'
+
+# By block hash
+curl -X POST http://localhost:3000/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": "EeQ63DqKGRz1JPGQG7W9BpiGKmrF8ESn9nHr3djL8s1e"
+  }'
+
+# With transactions and receipts
+curl -X POST http://localhost:3000/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 130000000,
+    "with_transactions": true,
+    "with_receipts": true
+  }'
+```
+
+Response (with transactions and receipts):
+
+```json5
+{
+  "block": {
+    "block_height": ...,
+    "prev_block_height": ...,
+    "block_hash": "...",
+    "prev_block_hash": "...",
+    "block_timestamp": "...",
+    "epoch_id": "...",
+    "next_epoch_id": "...",
+    "chunks_included": ...,
+    "author_id": "...",
+    "protocol_version": ...,
+    "gas_price": "...",
+    "block_ordinal": ...,
+    "total_supply": "...",
+    "num_transactions": ...,
+    "num_receipts": ...,
+    "gas_burnt": "...",
+    "tokens_burnt": "..."
+  },
+  "block_txs": [
+    // only if with_transactions: true
     {
-      "transaction": {
-        "actions": [{
-          "FunctionCall": {
-            "args": "eyJhY2NvdW50X2lkIjoiYWJjMTc2YmU2ZDYzY2FmN2FlMzNjYWYzNDYzYmU2ZjkxMGI4YmI5ZWZiNmJmZWMzZjI2YTY2NDBhMWI0NmYwNCJ9",
-            "deposit": "1250000000000000000000",
-            "gas": 30000000000000,
-            "method_name": "storage_deposit"
-          }
-        }],
-        "hash": "2bCYEdSzAojeQe8BYqbFRZJxaZS8ZMfCQt7gtDabcN3W",
-        "nonce": 64885790401249,
-        "public_key": "ed25519:D6cHxv3s9wYiWyhsqzKfqQm6XW4fhGS4Eg97U41v3zbh",
-        "receiver_id": "token.sweat",
-        "signer_id": "sweat_welcome.near"
-      },
-      "execution_outcome": {
-        "block_hash": "ASDm9EzkkCfT89AtX8XUmv2fyFaAobDUZmnsiueGHsJ8",
-        "outcome": {
-          "executor_id": "sweat_welcome.near",
-          "gas_burnt": 2428135649664,
-          "status": {
-            "SuccessReceiptId": "HpQmCSFMNd3ZuHCSw7wFLBzpwQEqR9XfY8xDTBey8Aak"
-          }
-          // ... additional outcome fields omitted
-        }
-      }
-      // ... additional fields like receipts, data_receipts omitted
+      "transaction_hash": "...",
+      "signer_id": "...",
+      "tx_block_height": ...,
+      "tx_index": ...,
+      "tx_block_hash": "...",
+      "tx_block_timestamp": "...",
+      "last_block_height": ...,
+      "is_completed": ...,
+      "shard_id": ...,
+      "receiver_id": "...",
+      "signer_public_key": "...",
+      "priority_fee": ...,
+      "nonce": ...,
+      "is_relayed": ...,
+      "real_signer_id": "...",
+      "real_receiver_id": "...",
+      "is_success": ...,
+      "gas_burnt": ...,
+      "tokens_burnt": "..."
     },
-    // ... more transactions
+    ...
   ],
-  "txs_count": 21854769
-}
-```
-
-</details>
-
-#### Example
-
-Get transactions for the `near` account with a maximum block height of `10000000`:
-
-```bash
-http post http://localhost:3000/v0/account account_id:='"near"' max_block_height:=10000000
-```
-
-<details>
-  <summary><b>Show Output</b></summary>
-
-```json5
-{
-  "account_txs": [
+  "block_receipts": [
+    // only if with_receipts: true
     {
-      "account_id": "near",
-      "signer_id": "near",
-      "transaction_hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-      "tx_block_height": 9823941,
-      "tx_block_timestamp": 1595371606784154928
-    }
-    // ... more transaction metadata rows
-  ],
-  "transactions": [
-    {
-      "transaction": {
-        "actions": [
-          "CreateAccount",
-          {
-            "Transfer": {
-              "deposit": "1000000000000000000000000"
-            }
-          },
-          {
-            "AddKey": {
-              "access_key": {
-                "nonce": 0,
-                "permission": "FullAccess"
-              },
-              "public_key": "ed25519:HbSrzVndedNoLZFD6FHRwStRntLHWfAprzoSdEF81fLi"
-            }
-          }
-        ],
-        "hash": "FRBTkEzjLEQekWmKzKfHoTQQJH6Fi5EKxuACWvjBP9wN",
-        "nonce": 15,
-        "public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU",
-        "receiver_id": "henry.near",
-        "signer_id": "near"
-      },
-      "execution_outcome": {
-        "block_hash": "aiWXsSZZzQtaj82rq6Lk6sF4nXqi1GMMN2yKHVozwNB",
-        "outcome": {
-          "executor_id": "near",
-          "gas_burnt": 424555062500,
-          "status": {
-            "SuccessReceiptId": "CyTJV9kcp6eLrLZbX9hDZQLZ7BJKzMpx7kHMWnhL2v8Z"
-          }
-          // ... additional outcome fields omitted
-        }
-      }
-      // ... additional fields like receipts, data_receipts omitted
-    }
-    // ... more transactions
+      "receipt_id": "...",
+      "block_height": ...,
+      "block_timestamp": "...",
+      "receipt_index": ...,
+      "appear_block_height": ...,
+      "appear_receipt_index": ...,
+      "transaction_hash": "...",
+      "tx_block_height": ...,
+      "tx_block_timestamp": "...",
+      "tx_index": ...,
+      "predecessor_id": "...",
+      "receiver_id": "...",
+      "receipt_type": "...",
+      "priority": ...,
+      "shard_id": ...,
+      "is_success": ...
+    },
+    ...
   ]
 }
 ```
 
-</details>
+## POST `/v0/blocks`
 
-## Block
+Fetch a list of blocks with optional height range and pagination.
 
-**POST** `/v0/block`
+**Optional fields:**
 
-Returns the list of transactions associated with a block at the given block ID.
-
-The associated transactions are transactions that originated in the block or had a receipt in the block.
-
-#### Input
-
-- `block_id`: Either the block height (if an integer is given) or the block hash (if a string is given) of the block to
-  query.
-
-#### Output
-
-- `block_txs` - The list of transactions associated with the block.
-- `transactions` - The list of the first 20 matching associated transactions.
-
-#### Example
-
-Get the transactions associated with block 9823941.
+- `from_block_height` / `to_block_height` - block height range
+- `limit` - number of results (default/max: 100)
+- `desc` - sort order (default: true)
 
 ```bash
-http post http://localhost:3000/v0/block block_id:=9823941
+# Latest blocks
+curl -X POST http://localhost:3000/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+# With range and limit
+curl -X POST http://localhost:3000/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "from_block_height": 130000000,
+    "to_block_height": 130000100,
+    "limit": 10,
+    "desc": false
+  }'
 ```
 
-<details>
-  <summary><b>Show Output</b></summary>
-
-```json5
-{
-  "block_txs": [
-    {
-      "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
-      "block_height": 9823941,
-      "block_timestamp": 1595371606784154928,
-      "signer_id": "near",
-      "transaction_hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-      "tx_block_height": 9823941
-    }
-  ],
-  "transactions": [
-    {
-      "transaction": {
-        "actions": [
-          "CreateAccount",
-          {
-            "Transfer": {
-              "deposit": "1000000000000000000000000"
-            }
-          },
-          {
-            "AddKey": {
-              "access_key": {
-                "nonce": 0,
-                "permission": "FullAccess"
-              },
-              "public_key": "ed25519:39mtn6H92UR82avZx8bvyNZ2UuCHL2JnCxMecM9dUMQa"
-            }
-          }
-        ],
-        "hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-        "nonce": 17,
-        "public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU",
-        "receiver_id": "fresh.near",
-        "signer_id": "near"
-      },
-      "execution_outcome": {
-        "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
-        "id": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-        "outcome": {
-          "executor_id": "near",
-          "gas_burnt": 424555062500,
-          "status": {
-            "SuccessReceiptId": "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK"
-          }
-          // ... additional outcome fields omitted
-        }
-      },
-      // ... receipts and data_receipts omitted
-    }
-  ]
-}
-```
-
-</details>
-
-#### Example
-
-Get the transactions associated with block hash `EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF`.
-
-```bash
-http post http://localhost:3000/v0/block block_id:='"EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF"'
-```
-
-<details>
-  <summary><b>Show Output</b></summary>
-
-```json5
-{
-  "block_txs": [
-    {
-      "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
-      "block_height": 9823941,
-      "block_timestamp": 1595371606784154928,
-      "signer_id": "near",
-      "transaction_hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-      "tx_block_height": 9823941
-    }
-  ],
-  "transactions": [
-    {
-      "transaction": {
-        "actions": [
-          "CreateAccount",
-          {
-            "Transfer": {
-              "deposit": "1000000000000000000000000"
-            }
-          },
-          {
-            "AddKey": {
-              "access_key": {
-                "nonce": 0,
-                "permission": "FullAccess"
-              },
-              "public_key": "ed25519:39mtn6H92UR82avZx8bvyNZ2UuCHL2JnCxMecM9dUMQa"
-            }
-          }
-        ],
-        "hash": "2hprGWVmVhQ2uq2Yda7CPTuqG7vJLrUm1GNTM5A4xGoQ",
-        "nonce": 17,
-        "receiver_id": "fresh.near",
-        "signer_id": "near"
-        // ... additional transaction fields omitted
-      },
-      "execution_outcome": {
-        "block_hash": "EBGVpv1MGSo3eTKMdzueRcQG5urfG2MDqUad6ErCX1EF",
-        "outcome": {
-          "executor_id": "near",
-          "gas_burnt": 424555062500,
-          "status": {
-            "SuccessReceiptId": "4GnCfvGFKUasMUHGCBokrj9LLGRmZWFMas1xZTihtVTK"
-          }
-          // ... additional outcome fields omitted
-        }
-      }
-      // ... receipts and data_receipts omitted
-    }
-  ]
-}
-```
-
-</details>
-
-## Last Blocks
-
-**POST** `/v0/blocks/last`
-
-Returns the number of associated transactions for each of the last 10 block.
-
-The associated transactions are transactions that originated in the block or had a receipt in the block.
-
-#### Input
-
-*None*
-
-#### Output
-
-- `blocks` - The list of the last 10 blocks and transaction counts. Includes:
-  - `block_hash` - The block hash.
-  - `block_height` - The block height.
-  - `block_timestamp` - The block timestamp in nanoseconds.
-  - `txs_count` - The number of associated transactions for the block
-
-#### Example
-
-```bash
-http post http://localhost:3000/v0/blocks/last
-```
-
-<details>
-  <summary><b>Show Output</b></summary>
+Response:
 
 ```json5
 {
   "blocks": [
     {
-      "block_hash": "57DtQ9JSuiF4YnNuLkKxUdVE5DWGKfeNfJqzpqzunn6u",
-      "block_height": 120153000,
-      "block_timestamp": 1717182115682386560,
-      "txs_count": 104
+      "block_height": ...,
+      "prev_block_height": ...,
+      "block_hash": "...",
+      "prev_block_hash": "...",
+      "block_timestamp": "...",
+      "epoch_id": "...",
+      "next_epoch_id": "...",
+      "chunks_included": ...,
+      "author_id": "...",
+      "protocol_version": ...,
+      "gas_price": "...",
+      "block_ordinal": ...,
+      "total_supply": "...",
+      "num_transactions": ...,
+      "num_receipts": ...,
+      "gas_burnt": "...",
+      "tokens_burnt": "..."
     },
-    {
-      "block_hash": "CG9FAixL3xohtDJtibxSxyNwkpyW4ndcHpRjRFrZXzPm",
-      "block_height": 120152999,
-      "block_timestamp": 1717182114391384635,
-      "txs_count": 186
-    },
-    // ... 6 more blocks
-    {
-      "block_hash": "32tUbpRLKZ4C8wMD88EKqSbJDA2oDXyAK1vrBt3JvVzb",
-      "block_height": 120152992,
-      "block_timestamp": 1717182106546208694,
-      "txs_count": 381
-    },
-    {
-      "block_hash": "6yFba9MHoZBbfzTRQaE394JjdeNLdYr944fDQhhLnwGY",
-      "block_height": 120152991,
-      "block_timestamp": 1717182105425344712,
-      "txs_count": 393
-    }
+    ...
   ]
 }
 ```
 
-</details>
+## POST `/v0/receipt`
 
-## Receipt
+Fetch a receipt by ID. Returns the receipt details and the associated raw transaction.
 
-**POST** `/v0/receipt`
+**Required fields:**
 
-Returns the transaction that includes the given receipt ID.
-
-#### Input
-
-- `receipt_id`: The receipt ID to query.
-
-#### Output
-
-- `transaction` - The transaction that includes the given receipt ID (or `null`).
-
-#### Example
-
-Get the transaction that includes the receipt ID `Fgtwfcbt6p1bVTBEeycKaHaAbnYRfn6rTTxNo9RfvsQx`.
+- `receipt_id` - the receipt hash
 
 ```bash
-http post http://localhost:3000/v0/receipt receipt_id:='"Fgtwfcbt6p1bVTBEeycKaHaAbnYRfn6rTTxNo9RfvsQx"'
+curl -X POST http://localhost:3000/v0/receipt \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
+  }'
 ```
 
-<details>
-  <summary><b>Show Output</b></summary>
+Response:
 
-```json
+```json5
 {
+  "receipt": {
+    "receipt_id": "...",
+    "block_height": ...,
+    "block_timestamp": "...",
+    "receipt_index": ...,
+    "appear_block_height": ...,
+    "appear_receipt_index": ...,
+    "transaction_hash": "...",
+    "tx_block_height": ...,
+    "tx_block_timestamp": "...",
+    "tx_index": ...,
+    "predecessor_id": "...",
+    "receiver_id": "...",
+    "receipt_type": "...",
+    "priority": ...,
+    "shard_id": ...,
+    "is_success": ...
+  },
   "transaction": {
-    "data_receipts": [],
-    "execution_outcome": {
-      "block_hash": "ABuEm9AMsLN3yHB7WUUapigcwJTaDn6ZDVWGHjRhP1Ma",
-      "id": "TUVnGuUaBt15eUoL3gWa4HJc9wDeutHKSHELDBxFeCT",
-      "outcome": {
-        "executor_id": "near",
-        "gas_burnt": 424555062500,
-        "logs": [],
-        "metadata": {
-          "gas_profile": null,
-          "version": 1
-        },
-        "receipt_ids": [
-          "4Apj4q6Nom3w96ek8Zy3TLcCojXHuVBt6E7Qcw6XZdQ2"
-        ],
-        "status": {
-          "SuccessReceiptId": "4Apj4q6Nom3w96ek8Zy3TLcCojXHuVBt6E7Qcw6XZdQ2"
-        },
-        "tokens_burnt": "424555062500000000000"
-      },
-      "proof": []
-    },
-    "receipts": [
-      {
-        "execution_outcome": {
-          "block_hash": "GXdEhC56a1DiqWic88d5EwtRGmHjb8ZTCjtS5ARhPkHt",
-          "id": "4Apj4q6Nom3w96ek8Zy3TLcCojXHuVBt6E7Qcw6XZdQ2",
-          "outcome": {
-            "executor_id": "dokia.near",
-            "gas_burnt": 424555062500,
-            "logs": [],
-            "metadata": {
-              "gas_profile": null,
-              "version": 1
-            },
-            "receipt_ids": [
-              "Fgtwfcbt6p1bVTBEeycKaHaAbnYRfn6rTTxNo9RfvsQx"
-            ],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "424555062500000000000"
-          },
-          "proof": []
-        },
-        "receipt": {
-          "predecessor_id": "near",
-          "receipt": {
-            "Action": {
-              "actions": [
-                "CreateAccount",
-                {
-                  "Transfer": {
-                    "deposit": "50000000000000000000000000"
-                  }
-                },
-                {
-                  "AddKey": {
-                    "access_key": {
-                      "nonce": 0,
-                      "permission": "FullAccess"
-                    },
-                    "public_key": "ed25519:8ZpjTDAxPkhmsgsACuvhorjuQsTVMvdB6Hbyf2Ciw9Ut"
-                  }
-                }
-              ],
-              "gas_price": "1030000000",
-              "input_data_ids": [],
-              "output_data_receivers": [],
-              "signer_id": "near",
-              "signer_public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU"
-            }
-          },
-          "receipt_id": "4Apj4q6Nom3w96ek8Zy3TLcCojXHuVBt6E7Qcw6XZdQ2",
-          "receiver_id": "dokia.near"
-        }
-      },
-      {
-        "execution_outcome": {
-          "block_hash": "EUbMGS8WpfTwWKNTYm7WFhytWLiw7L4LNDjcn5QxGRmA",
-          "id": "Fgtwfcbt6p1bVTBEeycKaHaAbnYRfn6rTTxNo9RfvsQx",
-          "outcome": {
-            "executor_id": "near",
-            "gas_burnt": 0,
-            "logs": [],
-            "metadata": {
-              "gas_profile": null,
-              "version": 1
-            },
-            "receipt_ids": [],
-            "status": {
-              "SuccessValue": ""
-            },
-            "tokens_burnt": "0"
-          },
-          "proof": []
-        },
-        "receipt": {
-          "predecessor_id": "system",
-          "receipt": {
-            "Action": {
-              "actions": [
-                {
-                  "Transfer": {
-                    "deposit": "12736651875000000000"
-                  }
-                }
-              ],
-              "gas_price": "0",
-              "input_data_ids": [],
-              "output_data_receivers": [],
-              "signer_id": "near",
-              "signer_public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU"
-            }
-          },
-          "receipt_id": "Fgtwfcbt6p1bVTBEeycKaHaAbnYRfn6rTTxNo9RfvsQx",
-          "receiver_id": "near"
-        }
-      }
-    ],
-    "transaction": {
-      "actions": [
-        "CreateAccount",
-        {
-          "Transfer": {
-            "deposit": "50000000000000000000000000"
-          }
-        },
-        {
-          "AddKey": {
-            "access_key": {
-              "nonce": 0,
-              "permission": "FullAccess"
-            },
-            "public_key": "ed25519:8ZpjTDAxPkhmsgsACuvhorjuQsTVMvdB6Hbyf2Ciw9Ut"
-          }
-        }
-      ],
-      "hash": "TUVnGuUaBt15eUoL3gWa4HJc9wDeutHKSHELDBxFeCT",
-      "nonce": 13,
-      "public_key": "ed25519:5zset1JX4qp4PcR3N9KDSY6ATdgkrbBW5wFBGWC4ZjnU",
-      "receiver_id": "dokia.near",
-      "signature": "ed25519:4gbN8XfoEvUweKeWvieB94XR1yQo6A2LZt1gjY6ByvPKNMh7wNY5qve87MJeRuMaGo8B49Dv7Dd3XfwFUeMm69AG",
-      "signer_id": "near"
-    }
+    /* raw transaction data */
   }
 }
 ```
-
-</details>
-
-
----
