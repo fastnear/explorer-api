@@ -254,26 +254,64 @@ pub mod v0 {
     ) -> Result<impl Responder, ServiceError> {
         let BlockInput { block_id } = input.into_inner();
         let block = app_state.click_db.get_block(block_id).await?;
-        let block_txs = if let Some(ref block) = block {
-            app_state
-                .click_db
-                .get_block_txs(block.block_height)
-                .await?
+        let (block_txs, block_receipts) = if let Some(ref block) = block {
+            let height = block.block_height;
+            let (txs, receipts) = tokio::try_join!(
+                app_state.click_db.get_block_txs(height),
+                app_state.click_db.get_block_receipts(height),
+            )?;
+            (txs, receipts)
         } else {
-            vec![]
+            (vec![], vec![])
         };
         Ok(web::Json(json!({
             "block": block,
             "block_txs": block_txs,
+            "block_receipts": block_receipts,
         })))
     }
 
-    #[post("/blocks/last")]
-    pub async fn get_last_blocks(
+    const BLOCKS_DEFAULT_LIMIT: usize = 100;
+
+    #[derive(Debug, Deserialize)]
+    pub struct BlocksInput {
+        pub from_block_height: Option<BlockHeight>,
+        pub to_block_height: Option<BlockHeight>,
+        pub limit: Option<usize>,
+        pub desc: Option<bool>,
+    }
+
+    #[post("/blocks")]
+    pub async fn get_blocks(
         _request: HttpRequest,
+        input: web::Json<BlocksInput>,
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
-        let blocks = app_state.click_db.get_last_blocks(10).await?;
+        let BlocksInput {
+            from_block_height,
+            to_block_height,
+            limit,
+            desc,
+        } = input.into_inner();
+
+        let desc = desc.unwrap_or(true);
+        let limit = limit
+            .unwrap_or(BLOCKS_DEFAULT_LIMIT)
+            .min(BLOCKS_DEFAULT_LIMIT);
+
+        if from_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
+            || to_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
+        {
+            return Err(ServiceError::ArgumentError(format!(
+                "Block height exceeds maximum allowed value of {}",
+                MAX_BLOCK_HEIGHT
+            )));
+        }
+
+        let blocks = app_state
+            .click_db
+            .get_blocks(from_block_height, to_block_height, limit, desc)
+            .await?;
 
         Ok(web::Json(json!({
             "blocks": blocks,

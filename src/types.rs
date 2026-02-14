@@ -4,19 +4,6 @@ use near_primitives::types::BlockHeight;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 
-#[serde_as]
-#[derive(Row, Serialize, Deserialize, Clone, Debug)]
-pub struct TransactionRow {
-    pub transaction_hash: String,
-    pub signer_id: String,
-    pub tx_block_height: u64,
-    pub tx_block_hash: String,
-    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
-    pub tx_block_timestamp: u64,
-    pub transaction: String,
-    pub last_block_height: u64,
-}
-
 /*
     CREATE TABLE local_account_txs ON CLUSTER '{cluster}'
 (
@@ -160,13 +147,27 @@ CREATE TABLE local_receipt_txs ON CLUSTER '{cluster}'
       ORDER BY (block_height, receipt_index, receipt_id)
 
  */
+#[serde_as]
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
 pub struct ReceiptTxRow {
     pub receipt_id: String,
+    pub block_height: u64,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub block_timestamp: u64,
+    pub receipt_index: u32,
+    pub appear_block_height: u64,
+    pub appear_receipt_index: u32,
     pub transaction_hash: String,
-    pub signer_id: String,
     pub tx_block_height: u64,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
     pub tx_block_timestamp: u64,
+    pub tx_index: u32,
+    pub predecessor_id: String,
+    pub receiver_id: String,
+    pub receipt_type: String,
+    pub priority: u64,
+    pub shard_id: u64,
+    pub is_success: bool,
 }
 
 /*

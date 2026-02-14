@@ -65,7 +65,7 @@ async fn main() -> std::io::Result<()> {
             .service(api::v0::get_transactions)
             .service(api::v0::get_account)
             .service(api::v0::get_block)
-            .service(api::v0::get_last_blocks)
+            .service(api::v0::get_blocks)
             .service(api::v0::get_receipt);
         App::new()
             .app_data(web::Data::new(AppState {

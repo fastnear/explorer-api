@@ -5,7 +5,6 @@ use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 use std::env;
 
-
 #[derive(Clone)]
 pub struct ClickDB {
     pub client: Client,
@@ -100,8 +99,12 @@ impl ClickDB {
         limit: usize,
         desc: bool,
     ) -> clickhouse::error::Result<Vec<AccountTxRow>> {
-        let mut conditions =
-            Self::account_txs_conditions(account_id, bool_filters, from_tx_block_height, to_tx_block_height);
+        let mut conditions = Self::account_txs_conditions(
+            account_id,
+            bool_filters,
+            from_tx_block_height,
+            to_tx_block_height,
+        );
 
         if let Some((bh, ti)) = resume {
             if desc {
@@ -140,8 +143,12 @@ impl ClickDB {
         from_tx_block_height: Option<BlockHeight>,
         to_tx_block_height: Option<BlockHeight>,
     ) -> clickhouse::error::Result<u64> {
-        let conditions =
-            Self::account_txs_conditions(account_id, bool_filters, from_tx_block_height, to_tx_block_height);
+        let conditions = Self::account_txs_conditions(
+            account_id,
+            bool_filters,
+            from_tx_block_height,
+            to_tx_block_height,
+        );
 
         let query = format!(
             "SELECT count() FROM account_txs WHERE {}",
@@ -198,36 +205,65 @@ impl ClickDB {
              ORDER BY tx_index",
             block_height
         );
-        self.read_rows(&query).await
+        let mut rows: Vec<BlockTxRow> = self.read_rows(&query).await?;
+        rows.dedup_by_key(|r| r.tx_index);
+        Ok(rows)
     }
 
-    pub async fn get_last_blocks(&self, limit: usize) -> clickhouse::error::Result<Vec<BlockRow>> {
+    pub async fn get_block_receipts(
+        &self,
+        block_height: BlockHeight,
+    ) -> clickhouse::error::Result<Vec<ReceiptTxRow>> {
         let query = format!(
-            "
-            SELECT
-                block_height,
-                prev_block_height,
-                block_hash,
-                prev_block_hash,
-                block_timestamp,
-                epoch_id,
-                next_epoch_id,
-                chunks_included,
-                author_id,
-                protocol_version,
-                gas_price,
-                block_ordinal,
-                total_supply,
-                num_transactions,
-                num_receipts,
-                gas_burnt,
-                tokens_burnt
-            FROM
-                blocks
-            ORDER BY
-                block_height DESC
-            LIMIT {}",
-            limit
+            "SELECT \
+                receipt_id, block_height, block_timestamp, receipt_index, \
+                appear_block_height, appear_receipt_index, transaction_hash, \
+                tx_block_height, tx_block_timestamp, tx_index, predecessor_id, \
+                receiver_id, receipt_type, priority, shard_id, is_success \
+             FROM receipt_txs \
+             WHERE block_height = {} \
+             ORDER BY receipt_index, receipt_id",
+            block_height
+        );
+        let mut rows: Vec<ReceiptTxRow> = self.read_rows(&query).await?;
+        rows.dedup_by_key(|r| (r.receipt_index, r.receipt_id.clone()));
+        Ok(rows)
+    }
+
+    pub async fn get_blocks(
+        &self,
+        from_block_height: Option<BlockHeight>,
+        to_block_height: Option<BlockHeight>,
+        limit: usize,
+        desc: bool,
+    ) -> clickhouse::error::Result<Vec<BlockRow>> {
+        let mut conditions = Vec::new();
+
+        if let Some(from) = from_block_height {
+            conditions.push(format!("block_height >= {}", from));
+        }
+        if let Some(to) = to_block_height {
+            conditions.push(format!("block_height <= {}", to));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        let order = if desc { "DESC" } else { "ASC" };
+        let query = format!(
+            "SELECT \
+                block_height, prev_block_height, block_hash, prev_block_hash, \
+                block_timestamp, epoch_id, next_epoch_id, chunks_included, \
+                author_id, protocol_version, gas_price, block_ordinal, \
+                total_supply, num_transactions, num_receipts, gas_burnt, tokens_burnt \
+             FROM blocks \
+             {} \
+             ORDER BY block_height {} \
+             LIMIT {}",
+            where_clause, order, limit
         );
         self.read_rows(&query).await
     }
