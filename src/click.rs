@@ -151,49 +151,52 @@ impl ClickDB {
         Ok(count)
     }
 
-    pub async fn get_block_txs(
+    pub async fn get_block(
         &self,
         block_id: BlockId,
-    ) -> clickhouse::error::Result<Vec<BlockTxRow>> {
+    ) -> clickhouse::error::Result<Option<BlockRow>> {
         let query = match block_id {
             BlockId::Hash(hash) => {
                 format!(
-                    "WITH block_heights AS (
-                        SELECT DISTINCT block_height
-                        FROM block_txs
-                        WHERE block_hash = '{}'
-                        LIMIT 1
-                    )
-                    SELECT * FROM block_txs WHERE block_height IN block_heights",
-                    hash.to_string()
+                    "SELECT \
+                        block_height, prev_block_height, block_hash, prev_block_hash, \
+                        block_timestamp, epoch_id, next_epoch_id, chunks_included, \
+                        author_id, protocol_version, gas_price, block_ordinal, \
+                        total_supply, num_transactions, num_receipts, gas_burnt, tokens_burnt \
+                     FROM blocks WHERE block_hash = '{}' LIMIT 1",
+                    hash
                 )
             }
             BlockId::Height(height) => {
-                format!("SELECT * FROM block_txs WHERE block_height = {}", height)
+                format!(
+                    "SELECT \
+                        block_height, prev_block_height, block_hash, prev_block_hash, \
+                        block_timestamp, epoch_id, next_epoch_id, chunks_included, \
+                        author_id, protocol_version, gas_price, block_ordinal, \
+                        total_supply, num_transactions, num_receipts, gas_burnt, tokens_burnt \
+                     FROM blocks WHERE block_height = {} LIMIT 1",
+                    height
+                )
             }
         };
-        self.read_rows(&query).await
+        let rows: Vec<BlockRow> = self.read_rows(&query).await?;
+        Ok(rows.into_iter().next())
     }
 
-    #[allow(dead_code)]
-    pub async fn get_last_block_txs(
+    pub async fn get_block_txs(
         &self,
-        limit: usize,
+        block_height: BlockHeight,
     ) -> clickhouse::error::Result<Vec<BlockTxRow>> {
         let query = format!(
-            "WITH last_blocks AS (
-                SELECT DISTINCT block_height
-                FROM block_txs
-                ORDER BY block_height DESC
-                LIMIT {}
-            )
-            SELECT
-                *
-            FROM
-                block_txs
-            WHERE
-                block_height in last_blocks",
-            limit
+            "SELECT \
+                transaction_hash, signer_id, tx_block_height, tx_index, tx_block_hash, \
+                tx_block_timestamp, last_block_height, is_completed, shard_id, receiver_id, \
+                signer_public_key, priority_fee, nonce, is_relayed, real_signer_id, \
+                real_receiver_id, is_success, gas_burnt, tokens_burnt \
+             FROM transactions \
+             WHERE tx_block_height = {} \
+             ORDER BY tx_index",
+            block_height
         );
         self.read_rows(&query).await
     }

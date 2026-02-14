@@ -81,38 +81,6 @@ pub mod v0 {
         })))
     }
 
-    /*
-        CREATE TABLE local_account_txs ON CLUSTER '{cluster}'
-    (
-        account_id            String COMMENT 'The account ID',
-        transaction_hash      String COMMENT 'The transaction hash',
-        last_block_height     UInt64 COMMENT 'The block height when the account was last updated',
-        tx_block_height       UInt64 COMMENT 'The block height when the transaction was included into the blockchain',
-        tx_block_timestamp    DateTime64(9, 'UTC') COMMENT 'The block timestamp in UTC when the transaction was included',
-        tx_index              UInt32 COMMENT 'The index of the transaction in the block',
-        is_signer             Bool COMMENT 'True if the account signed the transaction',
-        is_delegated_signer   Bool COMMENT 'True if the account was the signer of the delegated transaction action',
-        is_real_signer        Bool COMMENT 'True if the account was the real signer of the transaction (either direct or delegated, excluding relayer signer)',
-        is_any_signer         Bool COMMENT 'True if the account was the signer of the delegated transaction action or the signer of the transaction',
-        is_predecessor        Bool COMMENT 'True if the account was the predecessor of a receipt',
-        is_explicit_refund_to Bool COMMENT 'True if the account was the explicitly set as a refund_to account of an action receipt',
-        is_receiver           Bool COMMENT 'True if the account was the receiver of a receipt',
-        is_real_receiver      Bool COMMENT 'True if the account was the receiver of a receipt (excluding relayer receiver and gas refunds)',
-        is_function_call      Bool COMMENT 'True if the account was the target of a function call action',
-        is_action_arg         Bool COMMENT 'True if the account was involved in action arguments',
-        is_event_log          Bool COMMENT 'True if the account was involved in JSON event logs',
-        is_success            Bool COMMENT 'Whether the transaction execution was successful or not. Pending transactions are considered not successful',
-
-        INDEX tx_block_timestamp_minmax_idx tx_block_timestamp TYPE minmax GRANULARITY 1,
-        INDEX tx_block_height_minmax_idx tx_block_height TYPE minmax GRANULARITY 1,
-
-    ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/default/local_account_txs', '{replica}',
-                                            last_block_height)
-          PARTITION BY toYYYYMM(tx_block_timestamp)
-          PRIMARY KEY (account_id, tx_block_height)
-          ORDER BY (account_id, tx_block_height, tx_index)
-
-         */
     #[serde_as]
     #[derive(Debug, Deserialize)]
     pub struct AccountInput {
@@ -187,18 +155,42 @@ pub mod v0 {
 
         // Build boolean filters
         let mut bool_filters: Vec<(&str, bool)> = Vec::new();
-        if let Some(v) = is_signer { bool_filters.push(("is_signer", v)); }
-        if let Some(v) = is_delegated_signer { bool_filters.push(("is_delegated_signer", v)); }
-        if let Some(v) = is_real_signer { bool_filters.push(("is_real_signer", v)); }
-        if let Some(v) = is_any_signer { bool_filters.push(("is_any_signer", v)); }
-        if let Some(v) = is_predecessor { bool_filters.push(("is_predecessor", v)); }
-        if let Some(v) = is_explicit_refund_to { bool_filters.push(("is_explicit_refund_to", v)); }
-        if let Some(v) = is_receiver { bool_filters.push(("is_receiver", v)); }
-        if let Some(v) = is_real_receiver { bool_filters.push(("is_real_receiver", v)); }
-        if let Some(v) = is_function_call { bool_filters.push(("is_function_call", v)); }
-        if let Some(v) = is_action_arg { bool_filters.push(("is_action_arg", v)); }
-        if let Some(v) = is_event_log { bool_filters.push(("is_event_log", v)); }
-        if let Some(v) = is_success { bool_filters.push(("is_success", v)); }
+        if let Some(v) = is_signer {
+            bool_filters.push(("is_signer", v));
+        }
+        if let Some(v) = is_delegated_signer {
+            bool_filters.push(("is_delegated_signer", v));
+        }
+        if let Some(v) = is_real_signer {
+            bool_filters.push(("is_real_signer", v));
+        }
+        if let Some(v) = is_any_signer {
+            bool_filters.push(("is_any_signer", v));
+        }
+        if let Some(v) = is_predecessor {
+            bool_filters.push(("is_predecessor", v));
+        }
+        if let Some(v) = is_explicit_refund_to {
+            bool_filters.push(("is_explicit_refund_to", v));
+        }
+        if let Some(v) = is_receiver {
+            bool_filters.push(("is_receiver", v));
+        }
+        if let Some(v) = is_real_receiver {
+            bool_filters.push(("is_real_receiver", v));
+        }
+        if let Some(v) = is_function_call {
+            bool_filters.push(("is_function_call", v));
+        }
+        if let Some(v) = is_action_arg {
+            bool_filters.push(("is_action_arg", v));
+        }
+        if let Some(v) = is_event_log {
+            bool_filters.push(("is_event_log", v));
+        }
+        if let Some(v) = is_success {
+            bool_filters.push(("is_success", v));
+        }
 
         let txs_count = if resume_token.is_none() {
             Some(
@@ -261,18 +253,17 @@ pub mod v0 {
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
         let BlockInput { block_id } = input.into_inner();
-        let block_txs = app_state.click_db.get_block_txs(block_id).await?;
-        let tx_hashes = block_txs
-            .iter()
-            .map(|row| row.transaction_hash.clone())
-            .collect::<Vec<_>>();
-
-        let transactions = app_state
-            .click_db
-            .get_transactions(&tx_hashes[..tx_hashes.len().min(DEFAULT_TX_LIMIT)])
-            .await?;
+        let block = app_state.click_db.get_block(block_id).await?;
+        let block_txs = if let Some(ref block) = block {
+            app_state
+                .click_db
+                .get_block_txs(block.block_height)
+                .await?
+        } else {
+            vec![]
+        };
         Ok(web::Json(json!({
-            "transactions": transactions,
+            "block": block,
             "block_txs": block_txs,
         })))
     }
