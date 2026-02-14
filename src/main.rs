@@ -19,7 +19,6 @@ const PROJECT_ID: &str = "server";
 
 #[derive(Clone)]
 pub struct AppState {
-    pub redis_client: redis::Client,
     pub click_db: ClickDB,
 }
 
@@ -39,10 +38,6 @@ async fn main() -> std::io::Result<()> {
         // .with_env_filter(EnvFilter::new("debug"))
         .with_writer(std::io::stderr)
         .init();
-
-    let redis_client =
-        redis::Client::open(env::var("REDIS_URL").expect("Missing REDIS_URL env var"))
-            .expect("Failed to connect to Redis");
 
     let click_db = ClickDB::new();
     click_db
@@ -74,7 +69,6 @@ async fn main() -> std::io::Result<()> {
             .service(api::v0::get_receipt);
         App::new()
             .app_data(web::Data::new(AppState {
-                redis_client: redis_client.clone(),
                 click_db: click_db.clone(),
             }))
             .wrap(cors)

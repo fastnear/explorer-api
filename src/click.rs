@@ -49,7 +49,7 @@ impl ClickDB {
             return Ok(vec![]);
         }
         let query = format!(
-            "select transaction from transactions where transaction_hash in ({})",
+            "select data from raw_tx where transaction_hash in ({})",
             tx_hashes
                 .iter()
                 .map(|h| format!("'{}'", h))
@@ -59,10 +59,13 @@ impl ClickDB {
         Ok(self
             .client
             .query(&query)
-            .fetch_all::<String>()
+            .fetch_all::<Vec<u8>>()
             .await?
             .into_iter()
-            .map(|s| RawValue::from_string(s).unwrap())
+            .map(|v| {
+                RawValue::from_string(String::from_utf8(zstd::decode_all(&v[..]).unwrap()).unwrap())
+                    .unwrap()
+            })
             .collect())
     }
 
@@ -73,7 +76,7 @@ impl ClickDB {
     ) -> clickhouse::error::Result<Vec<AccountTxRow>> {
         let max_block_height = max_block_height.unwrap_or(u64::MAX);
         let query = format!(
-            "select * from account_txs where account_id = '{}' and tx_block_height <= {} order by tx_block_height desc limit {}",
+            "select account_id, transaction_hash, tx_block_height, tx_block_timestamp, tx_index from account_txs where account_id = '{}' and tx_block_height <= {} order by tx_block_height desc, tx_index desc limit {}",
             account_id,
             max_block_height,
             ACCOUNT_DEFAULT_LIMIT
@@ -140,30 +143,32 @@ impl ClickDB {
         self.read_rows(&query).await
     }
 
-    pub async fn get_last_block_txs_count(
-        &self,
-        limit: usize,
-    ) -> clickhouse::error::Result<Vec<BlocksWithTxCount>> {
+    pub async fn get_last_blocks(&self, limit: usize) -> clickhouse::error::Result<Vec<BlockRow>> {
         let query = format!(
-            "WITH last_blocks AS (
-                SELECT DISTINCT block_height
-                FROM block_txs
-                ORDER BY block_height DESC
-                LIMIT {}
-            )
+            "
             SELECT
                 block_height,
-                count() as txs_count,
-                any(block_timestamp) as block_timestamp,
-                any(block_hash) as block_hash
+                prev_block_height,
+                block_hash,
+                prev_block_hash,
+                block_timestamp,
+                epoch_id,
+                next_epoch_id,
+                chunks_included,
+                author_id,
+                protocol_version,
+                gas_price,
+                block_ordinal,
+                total_supply,
+                num_transactions,
+                num_receipts,
+                gas_burnt,
+                tokens_burnt
             FROM
-                block_txs
-            WHERE
-                block_height in last_blocks
-            GROUP BY
-                block_height
+                blocks
             ORDER BY
-                block_height DESC",
+                block_height DESC
+            LIMIT {}",
             limit
         );
         self.read_rows(&query).await

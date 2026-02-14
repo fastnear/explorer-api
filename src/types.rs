@@ -2,6 +2,7 @@ use clickhouse::Row;
 use near_primitives::hash::CryptoHash;
 use near_primitives::types::BlockHeight;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
 pub struct TransactionRow {
@@ -18,9 +19,10 @@ pub struct TransactionRow {
 pub struct AccountTxRow {
     pub account_id: String,
     pub transaction_hash: String,
-    pub signer_id: String,
+
     pub tx_block_height: u64,
     pub tx_block_timestamp: u64,
+    pub tx_index: u32,
 }
 
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
@@ -42,12 +44,31 @@ pub struct ReceiptTxRow {
     pub tx_block_timestamp: u64,
 }
 
-#[derive(Row, Deserialize, Serialize, Debug, Clone)]
-pub struct BlocksWithTxCount {
+#[serde_as]
+#[derive(Row, Serialize, Deserialize, Clone, Debug)]
+pub struct BlockRow {
     pub block_height: u64,
-    pub txs_count: u64,
-    pub block_timestamp: u64,
+    pub prev_block_height: Option<u64>,
     pub block_hash: String,
+    pub prev_block_hash: String,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub block_timestamp: u64,
+    pub epoch_id: String,
+    pub next_epoch_id: String,
+    pub chunks_included: u64,
+    pub author_id: String,
+    pub protocol_version: u32,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub gas_price: u128,
+    pub block_ordinal: Option<u64>,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub total_supply: u128,
+    pub num_transactions: u32,
+    pub num_receipts: u32,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub gas_burnt: u64,
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    pub tokens_burnt: u128,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

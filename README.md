@@ -48,28 +48,33 @@ http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c
         "outcome": {
           "executor_id": "lenguyenwin.near",
           "gas_burnt": 2428019381096,
-          "receipt_ids": ["H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"],
+          "receipt_ids": [
+            "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
+          ],
           "status": {
             "SuccessReceiptId": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
           },
           "tokens_burnt": "242801938109600000000"
           // ... logs, metadata, and other outcome fields omitted
         },
-        "proof": [] // Proof array omitted
+        "proof": []
+        // Proof array omitted
       },
       "receipts": [
         {
           "predecessor_id": "lenguyenwin.near",
           "receipt": {
             "Action": {
-              "actions": [{
-                "FunctionCall": {
-                  "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-                  "deposit": "1",
-                  "gas": 60000000000000,
-                  "method_name": "claim_stake_reward"
+              "actions": [
+                {
+                  "FunctionCall": {
+                    "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
+                    "deposit": "1",
+                    "gas": 60000000000000,
+                    "method_name": "claim_stake_reward"
+                  }
                 }
-              }],
+              ],
               "gas_price": "146853372",
               "signer_id": "lenguyenwin.near"
               // ... input_data_ids, output_data_receivers, signer_public_key omitted
@@ -81,14 +86,16 @@ http post http://localhost:3000/v0/transactions tx_hashes:='["HV42hanyDVK3MYoW8c
         // ... 7 more receipt objects omitted
       ],
       "transaction": {
-        "actions": [{
-          "FunctionCall": {
-            "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
-            "deposit": "1",
-            "gas": 60000000000000,
-            "method_name": "claim_stake_reward"
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJzdGFraW5nX3BhY2thZ2VfaWQiOjQ4Nn0=",
+              "deposit": "1",
+              "gas": 60000000000000,
+              "method_name": "claim_stake_reward"
+            }
           }
-        }],
+        ],
         "hash": "HV42hanyDVK3MYoW8c17Ufxw83htNEQGk93bzyQRocvS",
         "nonce": 83145267000161,
         "public_key": "ed25519:4iW7dw89iZrYNbbewyZu2DhuRcpfiLSCqut9aT5x79B1",
@@ -131,12 +138,12 @@ transactions associated with the account.
 
 - `account_txs` - The list of transaction metadata rows associated with the account.
   - `account_id` - The account ID.
-  - `signer_id` - The signer ID.
   - `transaction_hash` - The transaction hash.
   - `tx_block_height` - The block height of the transaction.
   - `tx_block_timestamp` - The block timestamp of the transaction.
+  - `tx_index` - The index of the transaction in the block.
 - `transactions` - The list of the first 20 matching associated transactions.
-- `total_txs` - The total number of transactions associated with the account. Only returned if the `max_block_height` is
+- `txs_count` - The total number of transactions associated with the account. Only returned if the `max_block_height` is
   not provided.
 
 #### Example
@@ -165,14 +172,16 @@ http post http://localhost:3000/v0/account account_id:='"sweat_welcome.near"'
   "transactions": [
     {
       "transaction": {
-        "actions": [{
-          "FunctionCall": {
-            "args": "eyJhY2NvdW50X2lkIjoiYWJjMTc2YmU2ZDYzY2FmN2FlMzNjYWYzNDYzYmU2ZjkxMGI4YmI5ZWZiNmJmZWMzZjI2YTY2NDBhMWI0NmYwNCJ9",
-            "deposit": "1250000000000000000000",
-            "gas": 30000000000000,
-            "method_name": "storage_deposit"
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJhY2NvdW50X2lkIjoiYWJjMTc2YmU2ZDYzY2FmN2FlMzNjYWYzNDYzYmU2ZjkxMGI4YmI5ZWZiNmJmZWMzZjI2YTY2NDBhMWI0NmYwNCJ9",
+              "deposit": "1250000000000000000000",
+              "gas": 30000000000000,
+              "method_name": "storage_deposit"
+            }
           }
-        }],
+        ],
         "hash": "2bCYEdSzAojeQe8BYqbFRZJxaZS8ZMfCQt7gtDabcN3W",
         "nonce": 64885790401249,
         "public_key": "ed25519:D6cHxv3s9wYiWyhsqzKfqQm6XW4fhGS4Eg97U41v3zbh",
