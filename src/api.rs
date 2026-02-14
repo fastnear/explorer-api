@@ -244,6 +244,8 @@ pub mod v0 {
     #[derive(Debug, Deserialize)]
     pub struct BlockInput {
         pub block_id: BlockId,
+        pub with_transactions: Option<bool>,
+        pub with_receipts: Option<bool>,
     }
 
     #[post("/block")]
@@ -252,23 +254,42 @@ pub mod v0 {
         input: web::Json<BlockInput>,
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
-        let BlockInput { block_id } = input.into_inner();
+        let BlockInput {
+            block_id,
+            with_transactions,
+            with_receipts,
+        } = input.into_inner();
+        let with_transactions = with_transactions.unwrap_or(false);
+        let with_receipts = with_receipts.unwrap_or(false);
+
         let block = app_state.click_db.get_block(block_id).await?;
-        let (block_txs, block_receipts) = if let Some(ref block) = block {
+
+        let mut res = json!({ "block": block });
+
+        if let Some(ref block) = block {
             let height = block.block_height;
-            let (txs, receipts) = tokio::try_join!(
-                app_state.click_db.get_block_txs(height),
-                app_state.click_db.get_block_receipts(height),
-            )?;
-            (txs, receipts)
-        } else {
-            (vec![], vec![])
-        };
-        Ok(web::Json(json!({
-            "block": block,
-            "block_txs": block_txs,
-            "block_receipts": block_receipts,
-        })))
+            match (with_transactions, with_receipts) {
+                (true, true) => {
+                    let (block_txs, block_receipts) = tokio::try_join!(
+                        app_state.click_db.get_block_txs(height),
+                        app_state.click_db.get_block_receipts(height),
+                    )?;
+                    res["block_txs"] = json!(block_txs);
+                    res["block_receipts"] = json!(block_receipts);
+                }
+                (true, false) => {
+                    let block_txs = app_state.click_db.get_block_txs(height).await?;
+                    res["block_txs"] = json!(block_txs);
+                }
+                (false, true) => {
+                    let block_receipts = app_state.click_db.get_block_receipts(height).await?;
+                    res["block_receipts"] = json!(block_receipts);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(web::Json(res))
     }
 
     const BLOCKS_DEFAULT_LIMIT: usize = 100;
@@ -330,11 +351,21 @@ pub mod v0 {
         app_state: web::Data<AppState>,
     ) -> Result<impl Responder, ServiceError> {
         let ReceiptInput { receipt_id } = input.into_inner();
-        let transaction = app_state
+        let receipt = app_state
             .click_db
-            .get_tx_for_receipt(receipt_id.to_string().as_str())
+            .get_receipt(receipt_id.to_string().as_str())
             .await?;
+        let transaction = if let Some(ref receipt) = receipt {
+            let txs = app_state
+                .click_db
+                .get_transactions(&[receipt.transaction_hash.clone()])
+                .await?;
+            txs.into_iter().next()
+        } else {
+            None
+        };
         Ok(web::Json(json!({
+            "receipt": receipt,
             "transaction": transaction,
         })))
     }

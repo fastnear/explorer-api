@@ -268,33 +268,23 @@ impl ClickDB {
         self.read_rows(&query).await
     }
 
-    pub async fn get_tx_for_receipt(
+    pub async fn get_receipt(
         &self,
         receipt_id: &str,
-    ) -> clickhouse::error::Result<Option<Box<RawValue>>> {
+    ) -> clickhouse::error::Result<Option<ReceiptTxRow>> {
         let query = format!(
-            "WITH last_txs AS (
-                SELECT
-                    transaction_hash
-                FROM
-                    receipt_txs
-                WHERE
-                    receipt_id = '{}'
-                LIMIT 1
-            )
-            SELECT
-                transaction
-            FROM
-                transactions
-            WHERE
-                transaction_hash in last_txs",
+            "SELECT \
+                receipt_id, block_height, block_timestamp, receipt_index, \
+                appear_block_height, appear_receipt_index, transaction_hash, \
+                tx_block_height, tx_block_timestamp, tx_index, predecessor_id, \
+                receiver_id, receipt_type, priority, shard_id, is_success \
+             FROM receipt_txs \
+             WHERE receipt_id = '{}' \
+             LIMIT 1",
             receipt_id
         );
-        let transactions = self.client.query(&query).fetch_all::<String>().await?;
-        Ok(transactions
-            .into_iter()
-            .next()
-            .map(|s| RawValue::from_string(s).unwrap()))
+        let rows: Vec<ReceiptTxRow> = self.read_rows(&query).await?;
+        Ok(rows.into_iter().next())
     }
 }
 
