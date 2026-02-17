@@ -253,13 +253,18 @@ impl ClickDB {
         };
 
         let order = if desc { "DESC" } else { "ASC" };
+        let table = if conditions.is_empty() && desc {
+            "blocks_latest"
+        } else {
+            "blocks"
+        };
         let query = format!(
             "SELECT \
                 block_height, prev_block_height, block_hash, prev_block_hash, \
                 block_timestamp, epoch_id, next_epoch_id, chunks_included, \
                 author_id, protocol_version, gas_price, block_ordinal, \
                 total_supply, num_transactions, num_receipts, gas_burnt, tokens_burnt \
-             FROM blocks \
+             FROM {table} \
              {} \
              ORDER BY block_height {} \
              LIMIT {}",
