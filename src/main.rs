@@ -28,6 +28,12 @@ async fn index() -> impl Responder {
         .body(include_str!("../static/index.html"))
 }
 
+async fn skill_md() -> impl Responder {
+    HttpResponse::Ok()
+        .content_type("text/markdown; charset=utf-8")
+        .body(include_str!("../static/skill.md"))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     openssl_probe::init_ssl_cert_env_vars();
@@ -78,6 +84,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(tracing_actix_web::TracingLogger::default())
             .service(api_v0)
             .route("/", web::get().to(index))
+            .route("/skill.md", web::get().to(skill_md))
     })
     .bind(bind_address)?
     .run()
