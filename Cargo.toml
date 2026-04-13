@@ -3,9 +3,14 @@ name = "explorer-api"
 version = "0.2.0"
 edition = "2021"
 
+[features]
+default = []
+openapi = ["dep:anyhow", "dep:fastnear-openapi-generator", "dep:schemars"]
+
 [dependencies]
 actix-web = "4.5.1"
 actix-cors = "0.7.0"
+anyhow = { version = "1", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 serde_with = "3.0"
@@ -21,9 +26,16 @@ near-crypto = "0.22.0"
 
 clickhouse = { version = "0.13", features = ["native-tls", "lz4", "chrono"] }
 chrono = { version = "0.4", features = ["serde"] }
+fastnear-openapi-generator = { version = "0.2.0", optional = true }
+schemars = { version = "1.2.1", optional = true }
 
 reqwest = { version = "0.12", features = ["json"] }
 base64 = "0.22.1"
 hex = "0.4.3"
 openssl-probe = "0.1.5"
 zstd = "0.13.3"
+
+[[bin]]
+name = "generate-openapi"
+path = "src/bin/generate-openapi.rs"
+required-features = ["openapi"]

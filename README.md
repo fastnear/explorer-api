@@ -3,6 +3,24 @@
 Note, this server expects the database tables from the Clickhouse
 indexer: https://github.com/fastnear/clickhouse-provider/tree/click-dist
 
+This service now owns its aggregate OpenAPI source in-repo. The checked-in
+`openapi/openapi.yaml` file is generated from the Rust DTOs and a Rust-first operation registry:
+
+`Rust DTOs -> cargo run --features openapi --bin generate-openapi -> openapi/openapi.yaml -> mike-docs split + sync -> builder-docs direct docs runtime`
+
+Generated files in `openapi/` are not hand-edit targets. This repo no longer owns per-operation
+leaf YAML files or portal presets.
+
+## OpenAPI Generation
+
+```bash
+# Regenerate the checked-in aggregate OpenAPI file
+cargo run --features openapi --bin generate-openapi
+
+# Verify the checked-in file is current
+cargo run --features openapi --bin generate-openapi -- --check
+```
+
 All endpoints are POST and accept JSON body. The base path is `/v0`.
 
 ## POST `/v0/transactions`
