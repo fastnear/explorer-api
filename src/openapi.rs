@@ -18,10 +18,16 @@ const SERVICE_INFO: ApiInfo<'static> = ApiInfo {
     title: "Transactions API",
     version: API_VERSION,
     description: "Transaction, receipt, block, and account-history queries backed by ClickHouse.",
-    servers: &[ApiServer {
-        url: "https://tx.main.fastnear.com",
-        description: "Mainnet",
-    }],
+    servers: &[
+        ApiServer {
+            url: "https://tx.main.fastnear.com",
+            description: "Mainnet",
+        },
+        ApiServer {
+            url: "https://tx.test.fastnear.com",
+            description: "Testnet",
+        },
+    ],
 };
 
 pub fn generate(check: bool) -> Result<()> {
