@@ -744,7 +744,7 @@ paths:
       x-fastnear-title: Transactions API - Block Range
   /v0/receipt:
     post:
-      description: Use this endpoint to fetch a receipt row and the associated transaction when available.
+      description: Fetch a receipt by ID along with the transaction that produced it.
       operationId: get_receipt
       requestBody:
         content:
@@ -780,7 +780,7 @@ paths:
       x-fastnear-title: Transactions API - Receipt Lookup
   /v0/transactions:
     post:
-      description: Use this endpoint to fetch up to 20 indexed transactions by hash.
+      description: Fetch up to 20 indexed transactions by hash in one request.
       operationId: get_transactions
       requestBody:
         content:

@@ -41,7 +41,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/transactions",
         "get_transactions",
         "Fetch transactions by hash",
-        "Use this endpoint to fetch up to 20 indexed transactions by hash.",
+        "Fetch up to 20 indexed transactions by hash in one request.",
         &["transactions"],
         json!({
             "tx_hashes": [
@@ -109,7 +109,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/receipt",
         "get_receipt",
         "Fetch a receipt by ID",
-        "Use this endpoint to fetch a receipt row and the associated transaction when available.",
+        "Fetch a receipt by ID along with the transaction that produced it.",
         &["receipts"],
         json!({
             "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"
