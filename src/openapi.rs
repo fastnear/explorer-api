@@ -41,7 +41,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/transactions",
         "get_transactions",
         "Fetch transactions by hash",
-        "Returns up to 20 raw transaction payloads for the supplied transaction hashes.",
+        "Use this endpoint to fetch up to 20 indexed transactions by hash.",
         &["transactions"],
         json!({
             "tx_hashes": [
@@ -58,7 +58,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/account",
         "get_account",
         "Fetch account transaction history",
-        "Returns account transaction rows, an optional total count on the first page, and an optional resume token.",
+        "Fetch account transaction history with optional filters for signer, success status, and sort order.",
         &["account"],
         json!({
             "account_id": "intents.near",
@@ -76,7 +76,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/block",
         "get_block",
         "Fetch a block by height or hash",
-        "Returns a block row and optionally its transactions and receipts.",
+        "Fetch a block row by height or hash and optionally expand its transactions and receipts.",
         &["blocks"],
         json!({
             "block_id": 130000000,
@@ -92,7 +92,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/blocks",
         "get_blocks",
         "Fetch a list of blocks",
-        "Returns up to 100 block rows for the requested height window.",
+        "Fetch a bounded list of indexed blocks ordered ascending or descending.",
         &["blocks"],
         json!({
             "from_block_height": 130000000,
@@ -109,7 +109,7 @@ pub fn generate(check: bool) -> Result<()> {
         "/v0/receipt",
         "get_receipt",
         "Fetch a receipt by ID",
-        "Returns a receipt row and, when present, the associated raw transaction payload.",
+        "Use this endpoint to fetch a receipt row and the associated transaction when available.",
         &["receipts"],
         json!({
             "receipt_id": "H6Roj3A2SNn7HJXdigLPDHiz2kcob4MHwLg3nnDEH2VZ"

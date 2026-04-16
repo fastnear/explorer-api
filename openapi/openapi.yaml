@@ -627,7 +627,7 @@ openapi: 3.0.3
 paths:
   /v0/account:
     post:
-      description: Returns account transaction rows, an optional total count on the first page, and an optional resume token.
+      description: Fetch account transaction history with optional filters for signer, success status, and sort order.
       operationId: get_account
       requestBody:
         content:
@@ -667,7 +667,7 @@ paths:
       x-fastnear-title: Transactions API - Account History
   /v0/block:
     post:
-      description: Returns a block row and optionally its transactions and receipts.
+      description: Fetch a block row by height or hash and optionally expand its transactions and receipts.
       operationId: get_block
       requestBody:
         content:
@@ -705,7 +705,7 @@ paths:
       x-fastnear-title: Transactions API - Block Lookup
   /v0/blocks:
     post:
-      description: Returns up to 100 block rows for the requested height window.
+      description: Fetch a bounded list of indexed blocks ordered ascending or descending.
       operationId: get_blocks
       requestBody:
         content:
@@ -744,7 +744,7 @@ paths:
       x-fastnear-title: Transactions API - Block Range
   /v0/receipt:
     post:
-      description: Returns a receipt row and, when present, the associated raw transaction payload.
+      description: Use this endpoint to fetch a receipt row and the associated transaction when available.
       operationId: get_receipt
       requestBody:
         content:
@@ -780,7 +780,7 @@ paths:
       x-fastnear-title: Transactions API - Receipt Lookup
   /v0/transactions:
     post:
-      description: Returns up to 20 raw transaction payloads for the supplied transaction hashes.
+      description: Use this endpoint to fetch up to 20 indexed transactions by hash.
       operationId: get_transactions
       requestBody:
         content:
