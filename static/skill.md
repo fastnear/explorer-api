@@ -2,6 +2,59 @@
 
 All endpoints are POST and accept JSON body. The base path is `/v0`.
 
+## Testnet quickstart
+
+Representative testnet examples:
+
+```bash
+# Account history
+curl -X POST https://tx.test.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "root.testnet",
+    "is_real_signer": true,
+    "is_success": true,
+    "limit": 20,
+    "desc": true
+  }'
+
+# Block lookup
+curl -X POST https://tx.test.fastnear.com/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 46562457,
+    "with_transactions": true,
+    "with_receipts": true
+  }'
+
+# Block range
+curl -X POST https://tx.test.fastnear.com/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "from_block_height": 46562448,
+    "to_block_height": 46562457,
+    "limit": 10,
+    "desc": false
+  }'
+
+# Receipt lookup
+curl -X POST https://tx.test.fastnear.com/v0/receipt \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "receipt_id": "8D3YiLcKYLAeNYmshj9cVwCTX6mgeWNXux4sJQ7FUTvV"
+  }'
+
+# Transactions by hash
+curl -X POST https://tx.test.fastnear.com/v0/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tx_hashes": [
+      "Cb9GXbQVodeJsVLiK2YnBR28vkiD7y4pEFGhxMGuP33q",
+      "9ufyhaEEzmerQz1Fvt2N91ZwXCcNZVhJXhq3QzRJZgfW"
+    ]
+  }'
+```
+
 ## POST `/v0/transactions`
 
 Fetch raw transaction data by transaction hashes. Up to 20 hashes per request.

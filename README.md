@@ -3,7 +3,83 @@
 Note, this server expects the database tables from the Clickhouse
 indexer: https://github.com/fastnear/clickhouse-provider/tree/click-dist
 
+This service now owns its aggregate OpenAPI source in-repo. The checked-in
+`openapi/openapi.yaml` file is generated from the Rust DTOs and a Rust-first operation registry:
+
+`Rust DTOs -> cargo run --features openapi --bin generate-openapi -> openapi/openapi.yaml -> mike-docs split + sync -> builder-docs direct docs runtime`
+
+Generated files in `openapi/` are not hand-edit targets. This repo no longer owns per-operation
+leaf YAML files or portal presets.
+
+## OpenAPI Generation
+
+```bash
+# Regenerate the checked-in aggregate OpenAPI file
+cargo run --features openapi --bin generate-openapi
+
+# Verify the checked-in file is current
+cargo run --features openapi --bin generate-openapi -- --check
+```
+
 All endpoints are POST and accept JSON body. The base path is `/v0`.
+
+Published base URLs:
+
+- Mainnet: `https://tx.main.fastnear.com`
+- Testnet: `https://tx.test.fastnear.com`
+
+## Testnet Quickstart
+
+Representative testnet examples:
+
+```bash
+# Account history
+curl -X POST https://tx.test.fastnear.com/v0/account \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "account_id": "root.testnet",
+    "is_real_signer": true,
+    "is_success": true,
+    "limit": 20,
+    "desc": true
+  }'
+
+# Block lookup
+curl -X POST https://tx.test.fastnear.com/v0/block \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "block_id": 46562457,
+    "with_transactions": true,
+    "with_receipts": true
+  }'
+
+# Block range
+curl -X POST https://tx.test.fastnear.com/v0/blocks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "from_block_height": 46562448,
+    "to_block_height": 46562457,
+    "limit": 10,
+    "desc": false
+  }'
+
+# Receipt lookup
+curl -X POST https://tx.test.fastnear.com/v0/receipt \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "receipt_id": "8D3YiLcKYLAeNYmshj9cVwCTX6mgeWNXux4sJQ7FUTvV"
+  }'
+
+# Transactions by hash
+curl -X POST https://tx.test.fastnear.com/v0/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tx_hashes": [
+      "Cb9GXbQVodeJsVLiK2YnBR28vkiD7y4pEFGhxMGuP33q",
+      "9ufyhaEEzmerQz1Fvt2N91ZwXCcNZVhJXhq3QzRJZgfW"
+    ]
+  }'
+```
 
 ## POST `/v0/transactions`
 

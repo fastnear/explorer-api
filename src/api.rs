@@ -1,17 +1,18 @@
-use crate::*;
 use std::fmt;
 
 use actix_web::{post, ResponseError};
-use actix_web::{web, HttpRequest};
-use serde::Deserialize;
-use serde_with::{serde_as, DisplayFromStr};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
-use serde_json::json;
+use crate::types::{
+    AccountInput, AccountResponse, ApiError, BlockInput, BlockResponse, BlocksInput,
+    BlocksResponse, ReceiptInput, ReceiptResponse, TransactionsResponse, TxInput,
+};
+use crate::AppState;
 
 const TARGET_API: &str = "api";
 const DEFAULT_TX_LIMIT: usize = 20;
 const ACCOUNT_DEFAULT_LIMIT: usize = 200;
-const MAX_BLOCK_HEIGHT: BlockHeight = 1_000_000_000_000_000;
+const MAX_BLOCK_HEIGHT: u64 = 1_000_000_000_000_000;
 
 #[derive(Debug)]
 enum ServiceError {
@@ -43,10 +44,10 @@ impl ResponseError for ServiceError {
             }
             ServiceError::ArgumentError(ref err) => {
                 tracing::error!(target: TARGET_API, "Argument error: {}", err);
-                HttpResponse::BadRequest().json(json!({
-                    "error": "Bad request",
-                    "message": err,
-                }))
+                HttpResponse::BadRequest().json(ApiError {
+                    error: "Bad request".to_string(),
+                    message: err.clone(),
+                })
             }
         }
     }
@@ -54,11 +55,6 @@ impl ResponseError for ServiceError {
 
 pub mod v0 {
     use super::*;
-
-    #[derive(Debug, Deserialize)]
-    pub struct TxInput {
-        pub tx_hashes: Vec<CryptoHash>,
-    }
 
     #[post("/transactions")]
     pub async fn get_transactions(
@@ -76,33 +72,7 @@ pub mod v0 {
 
         let tx_hashes = tx_hashes.iter().map(|h| h.to_string()).collect::<Vec<_>>();
         let transactions = app_state.click_db.get_transactions(&tx_hashes).await?;
-        Ok(web::Json(json!({
-            "transactions": transactions,
-        })))
-    }
-
-    #[serde_as]
-    #[derive(Debug, Deserialize)]
-    pub struct AccountInput {
-        pub account_id: AccountId,
-        pub is_signer: Option<bool>,
-        pub is_delegated_signer: Option<bool>,
-        pub is_real_signer: Option<bool>,
-        pub is_any_signer: Option<bool>,
-        pub is_predecessor: Option<bool>,
-        pub is_explicit_refund_to: Option<bool>,
-        pub is_receiver: Option<bool>,
-        pub is_real_receiver: Option<bool>,
-        pub is_function_call: Option<bool>,
-        pub is_action_arg: Option<bool>,
-        pub is_event_log: Option<bool>,
-        pub is_success: Option<bool>,
-        #[serde_as(as = "Option<DisplayFromStr>")]
-        pub resume_token: Option<u128>,
-        pub from_tx_block_height: Option<BlockHeight>,
-        pub to_tx_block_height: Option<BlockHeight>,
-        pub limit: Option<usize>,
-        pub desc: Option<bool>,
+        Ok(web::Json(TransactionsResponse { transactions }))
     }
 
     #[post("/account")]
@@ -135,7 +105,8 @@ pub mod v0 {
         let desc = desc.unwrap_or(true);
         let limit = limit
             .unwrap_or(ACCOUNT_DEFAULT_LIMIT)
-            .min(ACCOUNT_DEFAULT_LIMIT);
+            .min(ACCOUNT_DEFAULT_LIMIT)
+            .max(1);
 
         if from_tx_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
             || to_tx_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
@@ -229,23 +200,11 @@ pub mod v0 {
             None
         };
 
-        let mut res = json!({
-            "account_txs": account_txs,
-        });
-        if let Some(resume_token) = resume_token {
-            res["resume_token"] = json!(resume_token);
-        }
-        if let Some(txs_count) = txs_count {
-            res["txs_count"] = json!(txs_count);
-        }
-        Ok(web::Json(res))
-    }
-
-    #[derive(Debug, Deserialize)]
-    pub struct BlockInput {
-        pub block_id: BlockId,
-        pub with_transactions: Option<bool>,
-        pub with_receipts: Option<bool>,
+        Ok(web::Json(AccountResponse {
+            account_txs,
+            resume_token,
+            txs_count,
+        }))
     }
 
     #[post("/block")]
@@ -263,44 +222,38 @@ pub mod v0 {
         let with_receipts = with_receipts.unwrap_or(false);
 
         let block = app_state.click_db.get_block(block_id).await?;
-
-        let mut res = json!({ "block": block });
+        let mut block_txs = None;
+        let mut block_receipts = None;
 
         if let Some(ref block) = block {
             let height = block.block_height;
             match (with_transactions, with_receipts) {
                 (true, true) => {
-                    let (block_txs, block_receipts) = tokio::try_join!(
+                    let (transactions, receipts) = tokio::try_join!(
                         app_state.click_db.get_block_txs(height),
                         app_state.click_db.get_block_receipts(height),
                     )?;
-                    res["block_txs"] = json!(block_txs);
-                    res["block_receipts"] = json!(block_receipts);
+                    block_txs = Some(transactions);
+                    block_receipts = Some(receipts);
                 }
                 (true, false) => {
-                    let block_txs = app_state.click_db.get_block_txs(height).await?;
-                    res["block_txs"] = json!(block_txs);
+                    block_txs = Some(app_state.click_db.get_block_txs(height).await?);
                 }
                 (false, true) => {
-                    let block_receipts = app_state.click_db.get_block_receipts(height).await?;
-                    res["block_receipts"] = json!(block_receipts);
+                    block_receipts = Some(app_state.click_db.get_block_receipts(height).await?);
                 }
                 _ => {}
             }
         }
 
-        Ok(web::Json(res))
+        Ok(web::Json(BlockResponse {
+            block,
+            block_txs,
+            block_receipts,
+        }))
     }
 
     const BLOCKS_DEFAULT_LIMIT: usize = 100;
-
-    #[derive(Debug, Deserialize)]
-    pub struct BlocksInput {
-        pub from_block_height: Option<BlockHeight>,
-        pub to_block_height: Option<BlockHeight>,
-        pub limit: Option<usize>,
-        pub desc: Option<bool>,
-    }
 
     #[post("/blocks")]
     pub async fn get_blocks(
@@ -318,7 +271,8 @@ pub mod v0 {
         let desc = desc.unwrap_or(true);
         let limit = limit
             .unwrap_or(BLOCKS_DEFAULT_LIMIT)
-            .min(BLOCKS_DEFAULT_LIMIT);
+            .min(BLOCKS_DEFAULT_LIMIT)
+            .max(1);
 
         if from_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
             || to_block_height.unwrap_or(0) > MAX_BLOCK_HEIGHT
@@ -334,14 +288,7 @@ pub mod v0 {
             .get_blocks(from_block_height, to_block_height, limit, desc)
             .await?;
 
-        Ok(web::Json(json!({
-            "blocks": blocks,
-        })))
-    }
-
-    #[derive(Debug, Deserialize)]
-    pub struct ReceiptInput {
-        pub receipt_id: CryptoHash,
+        Ok(web::Json(BlocksResponse { blocks }))
     }
 
     #[post("/receipt")]
@@ -364,9 +311,9 @@ pub mod v0 {
         } else {
             None
         };
-        Ok(web::Json(json!({
-            "receipt": receipt,
-            "transaction": transaction,
-        })))
+        Ok(web::Json(ReceiptResponse {
+            receipt,
+            transaction,
+        }))
     }
 }

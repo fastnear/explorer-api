@@ -1,9 +1,10 @@
-use crate::*;
-
 use clickhouse::{Client, Row};
+use near_primitives::types::{AccountId, BlockHeight};
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 use std::env;
+
+use crate::types::{AccountTxRow, BlockId, BlockRow, BlockTxRow, ReceiptTxRow};
 
 #[derive(Clone)]
 pub struct ClickDB {
