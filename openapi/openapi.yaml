@@ -4,52 +4,68 @@ components:
       additionalProperties: false
       properties:
         account_id:
+          description: NEAR account to query transactions for (may be a signer, predecessor, receiver, or related party).
           type: string
         desc:
+          description: Sort newest-first when true; oldest-first when false or omitted.
           nullable: true
           type: boolean
         from_tx_block_height:
+          description: Inclusive lower bound on the transaction's block height.
           format: uint64
           minimum: 0
           nullable: true
           type: integer
         is_action_arg:
+          description: Restrict to transactions where this account appeared in action arguments.
           nullable: true
           type: boolean
         is_any_signer:
+          description: Restrict to transactions where this account signed either the top-level transaction or a delegated action.
           nullable: true
           type: boolean
         is_delegated_signer:
+          description: Restrict to transactions where this account signed a delegated action.
           nullable: true
           type: boolean
         is_event_log:
+          description: Restrict to transactions where this account appeared in a JSON event log.
           nullable: true
           type: boolean
         is_explicit_refund_to:
+          description: Restrict to transactions where this account was the explicit `refund_to` target of an action receipt.
           nullable: true
           type: boolean
         is_function_call:
+          description: Restrict to transactions where this account was the target of a function-call action.
           nullable: true
           type: boolean
         is_predecessor:
+          description: Restrict to transactions where this account was the predecessor of a receipt.
           nullable: true
           type: boolean
         is_real_receiver:
+          description: Restrict to transactions where this account was the real receiver — excluding relayer receivers and gas refunds.
           nullable: true
           type: boolean
         is_real_signer:
+          description: Restrict to transactions where this account was the real signer — direct or delegated, excluding relayer signers.
           nullable: true
           type: boolean
         is_receiver:
+          description: Restrict to transactions where this account received a receipt.
           nullable: true
           type: boolean
         is_signer:
+          description: Restrict to transactions where this account signed the top-level transaction.
           nullable: true
           type: boolean
         is_success:
+          description: Restrict to transactions whose execution succeeded (true) or failed/pending (false).
           nullable: true
           type: boolean
         limit:
+          description: Maximum rows to return in one page (1–200).
           format: uint
           maximum: 200
           minimum: 1
@@ -57,9 +73,11 @@ components:
           type: integer
         resume_token:
           default: null
+          description: Opaque pagination token returned on a prior page; omit for the first page.
           nullable: true
           type: string
         to_tx_block_height:
+          description: Exclusive upper bound on the transaction's block height.
           format: uint64
           minimum: 0
           nullable: true
@@ -160,14 +178,17 @@ components:
       additionalProperties: false
       properties:
         block_id:
+          description: Block height (integer) or base58-encoded block hash (string) to fetch.
           oneOf:
           - minimum: 0
             type: integer
           - type: string
         with_receipts:
+          description: Include the block's receipts in the response when true.
           nullable: true
           type: boolean
         with_transactions:
+          description: Include the block's transactions in the response when true.
           nullable: true
           type: boolean
       required:
@@ -410,20 +431,24 @@ components:
       additionalProperties: false
       properties:
         desc:
+          description: Sort newest-first when true; oldest-first when false or omitted.
           nullable: true
           type: boolean
         from_block_height:
+          description: Inclusive lower bound on block height.
           format: uint64
           minimum: 0
           nullable: true
           type: integer
         limit:
+          description: Maximum blocks to return in one page (1–100).
           format: uint
           maximum: 100
           minimum: 1
           nullable: true
           type: integer
         to_block_height:
+          description: Exclusive upper bound on block height.
           format: uint64
           minimum: 0
           nullable: true
@@ -443,6 +468,7 @@ components:
       additionalProperties: false
       properties:
         receipt_id:
+          description: Base58-encoded receipt ID to look up.
           type: string
       required:
       - receipt_id
@@ -612,6 +638,7 @@ components:
       additionalProperties: false
       properties:
         tx_hashes:
+          description: Up to 20 base58-encoded transaction hashes to fetch in one request.
           items:
             type: string
           maxItems: 20

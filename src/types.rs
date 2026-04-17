@@ -9,6 +9,7 @@ use serde_with::{serde_as, DisplayFromStr};
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct TxInput {
+    /// Up to 20 base58-encoded transaction hashes to fetch in one request.
     #[cfg_attr(feature = "openapi", schemars(schema_with = "tx_hashes_schema"))]
     pub tx_hashes: Vec<CryptoHash>,
 }
@@ -29,29 +30,47 @@ pub struct TransactionsResponse {
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct AccountInput {
+    /// NEAR account to query transactions for (may be a signer, predecessor, receiver, or related party).
     #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub account_id: AccountId,
+    /// Restrict to transactions where this account signed the top-level transaction.
     pub is_signer: Option<bool>,
+    /// Restrict to transactions where this account signed a delegated action.
     pub is_delegated_signer: Option<bool>,
+    /// Restrict to transactions where this account was the real signer — direct or delegated, excluding relayer signers.
     pub is_real_signer: Option<bool>,
+    /// Restrict to transactions where this account signed either the top-level transaction or a delegated action.
     pub is_any_signer: Option<bool>,
+    /// Restrict to transactions where this account was the predecessor of a receipt.
     pub is_predecessor: Option<bool>,
+    /// Restrict to transactions where this account was the explicit `refund_to` target of an action receipt.
     pub is_explicit_refund_to: Option<bool>,
+    /// Restrict to transactions where this account received a receipt.
     pub is_receiver: Option<bool>,
+    /// Restrict to transactions where this account was the real receiver — excluding relayer receivers and gas refunds.
     pub is_real_receiver: Option<bool>,
+    /// Restrict to transactions where this account was the target of a function-call action.
     pub is_function_call: Option<bool>,
+    /// Restrict to transactions where this account appeared in action arguments.
     pub is_action_arg: Option<bool>,
+    /// Restrict to transactions where this account appeared in a JSON event log.
     pub is_event_log: Option<bool>,
+    /// Restrict to transactions whose execution succeeded (true) or failed/pending (false).
     pub is_success: Option<bool>,
+    /// Opaque pagination token returned on a prior page; omit for the first page.
     #[serde_as(as = "Option<DisplayFromStr>")]
     #[cfg_attr(feature = "openapi", schemars(with = "Option<String>"))]
     pub resume_token: Option<u128>,
+    /// Inclusive lower bound on the transaction's block height.
     #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
     pub from_tx_block_height: Option<BlockHeight>,
+    /// Exclusive upper bound on the transaction's block height.
     #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
     pub to_tx_block_height: Option<BlockHeight>,
+    /// Maximum rows to return in one page (1–200).
     #[cfg_attr(feature = "openapi", schemars(range(min = 1, max = 200)))]
     pub limit: Option<usize>,
+    /// Sort newest-first when true; oldest-first when false or omitted.
     pub desc: Option<bool>,
 }
 
@@ -72,9 +91,12 @@ pub struct AccountResponse {
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct BlockInput {
+    /// Block height (integer) or base58-encoded block hash (string) to fetch.
     #[cfg_attr(feature = "openapi", schemars(schema_with = "block_id_schema"))]
     pub block_id: BlockId,
+    /// Include the block's transactions in the response when true.
     pub with_transactions: Option<bool>,
+    /// Include the block's receipts in the response when true.
     pub with_receipts: Option<bool>,
 }
 
@@ -100,12 +122,16 @@ pub struct BlockResponse {
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct BlocksInput {
+    /// Inclusive lower bound on block height.
     #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
     pub from_block_height: Option<BlockHeight>,
+    /// Exclusive upper bound on block height.
     #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
     pub to_block_height: Option<BlockHeight>,
+    /// Maximum blocks to return in one page (1–100).
     #[cfg_attr(feature = "openapi", schemars(range(min = 1, max = 100)))]
     pub limit: Option<usize>,
+    /// Sort newest-first when true; oldest-first when false or omitted.
     pub desc: Option<bool>,
 }
 
@@ -120,6 +146,7 @@ pub struct BlocksResponse {
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct ReceiptInput {
+    /// Base58-encoded receipt ID to look up.
     #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub receipt_id: CryptoHash,
 }
