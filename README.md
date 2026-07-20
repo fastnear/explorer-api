@@ -3,6 +3,20 @@
 Note, this server expects the database tables from the Clickhouse
 indexer: https://github.com/fastnear/clickhouse-provider/tree/click-dist
 
+## OpenAPI
+
+`openapi/openapi.yaml` is generated from the Rust request/response types in
+`src/types.rs` and the operation registry in `src/openapi.rs`. It is the source of
+truth for the published API docs and is not hand-edited.
+
+```bash
+# Regenerate openapi/openapi.yaml from the Rust types
+cargo run --features openapi --bin generate-openapi
+
+# Verify the checked-in file is up to date (used in CI)
+cargo run --features openapi --bin generate-openapi -- --check
+```
+
 All endpoints are POST and accept JSON body. The base path is `/v0`.
 
 ## POST `/v0/transactions`

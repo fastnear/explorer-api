@@ -1,8 +1,181 @@
 use clickhouse::Row;
 use near_primitives::hash::CryptoHash;
-use near_primitives::types::BlockHeight;
+use near_primitives::types::{AccountId, BlockHeight};
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use serde_with::{serde_as, DisplayFromStr};
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct TxInput {
+    /// Up to 20 base58-encoded transaction hashes to fetch in one request.
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "tx_hashes_schema"))]
+    pub tx_hashes: Vec<CryptoHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct TransactionsResponse {
+    #[cfg_attr(
+        feature = "openapi",
+        schemars(schema_with = "raw_transaction_array_schema")
+    )]
+    pub transactions: Vec<Box<RawValue>>,
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct AccountInput {
+    /// NEAR account to query transactions for (may be a signer, predecessor, receiver, or related party).
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
+    pub account_id: AccountId,
+    /// Restrict to transactions where this account signed the top-level transaction.
+    pub is_signer: Option<bool>,
+    /// Restrict to transactions where this account signed a delegated action.
+    pub is_delegated_signer: Option<bool>,
+    /// Restrict to transactions where this account was the real signer — direct or delegated, excluding relayer signers.
+    pub is_real_signer: Option<bool>,
+    /// Restrict to transactions where this account signed either the top-level transaction or a delegated action.
+    pub is_any_signer: Option<bool>,
+    /// Restrict to transactions where this account was the predecessor of a receipt.
+    pub is_predecessor: Option<bool>,
+    /// Restrict to transactions where this account was the explicit `refund_to` target of an action receipt.
+    pub is_explicit_refund_to: Option<bool>,
+    /// Restrict to transactions where this account received a receipt.
+    pub is_receiver: Option<bool>,
+    /// Restrict to transactions where this account was the real receiver — excluding relayer receivers and gas refunds.
+    pub is_real_receiver: Option<bool>,
+    /// Restrict to transactions where this account was the target of a function-call action.
+    pub is_function_call: Option<bool>,
+    /// Restrict to transactions where this account appeared in action arguments.
+    pub is_action_arg: Option<bool>,
+    /// Restrict to transactions where this account appeared in a JSON event log.
+    pub is_event_log: Option<bool>,
+    /// Restrict to transactions whose execution succeeded (true) or failed/pending (false).
+    pub is_success: Option<bool>,
+    /// Opaque pagination token returned on a prior page; omit for the first page.
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[cfg_attr(feature = "openapi", schemars(with = "Option<String>"))]
+    pub resume_token: Option<u128>,
+    /// Inclusive lower bound on the transaction's block height.
+    #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
+    pub from_tx_block_height: Option<BlockHeight>,
+    /// Exclusive upper bound on the transaction's block height.
+    #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
+    pub to_tx_block_height: Option<BlockHeight>,
+    /// Maximum rows to return in one page (1–200).
+    #[cfg_attr(feature = "openapi", schemars(range(min = 1, max = 200)))]
+    pub limit: Option<usize>,
+    /// Sort newest-first when true; oldest-first when false or omitted.
+    pub desc: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct AccountResponse {
+    pub account_txs: Vec<AccountTxRow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "string_schema"))]
+    pub resume_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "u64_schema"))]
+    pub txs_count: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct BlockInput {
+    /// Block height (integer) or base58-encoded block hash (string) to fetch.
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "block_id_schema"))]
+    pub block_id: BlockId,
+    /// Include the block's transactions in the response when true.
+    pub with_transactions: Option<bool>,
+    /// Include the block's receipts in the response when true.
+    pub with_receipts: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct BlockResponse {
+    #[cfg_attr(feature = "openapi", schemars(required))]
+    #[cfg_attr(
+        feature = "openapi",
+        schemars(schema_with = "nullable_block_row_schema")
+    )]
+    pub block: Option<BlockRow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "block_txs_schema"))]
+    pub block_txs: Option<Vec<BlockTxRow>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schemars(schema_with = "receipt_txs_schema"))]
+    pub block_receipts: Option<Vec<ReceiptTxRow>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct BlocksInput {
+    /// Inclusive lower bound on block height.
+    #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
+    pub from_block_height: Option<BlockHeight>,
+    /// Exclusive upper bound on block height.
+    #[cfg_attr(feature = "openapi", schemars(range(min = 0)))]
+    pub to_block_height: Option<BlockHeight>,
+    /// Maximum blocks to return in one page (1–100).
+    #[cfg_attr(feature = "openapi", schemars(range(min = 1, max = 100)))]
+    pub limit: Option<usize>,
+    /// Sort newest-first when true; oldest-first when false or omitted.
+    pub desc: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct BlocksResponse {
+    pub blocks: Vec<BlockRow>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct ReceiptInput {
+    /// Base58-encoded receipt ID to look up.
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
+    pub receipt_id: CryptoHash,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct ReceiptResponse {
+    #[cfg_attr(feature = "openapi", schemars(required))]
+    #[cfg_attr(
+        feature = "openapi",
+        schemars(schema_with = "nullable_receipt_tx_row_schema")
+    )]
+    pub receipt: Option<ReceiptTxRow>,
+    #[cfg_attr(feature = "openapi", schemars(required))]
+    #[cfg_attr(
+        feature = "openapi",
+        schemars(schema_with = "nullable_raw_transaction_schema")
+    )]
+    pub transaction: Option<Box<RawValue>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct ApiError {
+    pub error: String,
+    pub message: String,
+}
 
 /*
     CREATE TABLE local_account_txs ON CLUSTER '{cluster}'
@@ -37,15 +210,16 @@ use serde_with::{serde_as, DisplayFromStr};
 */
 #[serde_as]
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct AccountTxRow {
     pub account_id: String,
     pub transaction_hash: String,
-
     pub tx_block_height: u64,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub tx_block_timestamp: u64,
     pub tx_index: u32,
-
     pub is_signer: bool,
     pub is_delegated_signer: bool,
     pub is_real_signer: bool,
@@ -95,6 +269,8 @@ CREATE TABLE local_transactions ON CLUSTER '{cluster}'
  */
 #[serde_as]
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct BlockTxRow {
     pub transaction_hash: String,
     pub signer_id: String,
@@ -102,6 +278,7 @@ pub struct BlockTxRow {
     pub tx_index: u32,
     pub tx_block_hash: String,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub tx_block_timestamp: u64,
     pub last_block_height: u64,
     pub is_completed: bool,
@@ -116,6 +293,7 @@ pub struct BlockTxRow {
     pub is_success: bool,
     pub gas_burnt: u64,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub tokens_burnt: u128,
 }
 
@@ -149,10 +327,13 @@ CREATE TABLE local_receipt_txs ON CLUSTER '{cluster}'
  */
 #[serde_as]
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct ReceiptTxRow {
     pub receipt_id: String,
     pub block_height: u64,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub block_timestamp: u64,
     pub receipt_index: u32,
     pub appear_block_height: u64,
@@ -160,6 +341,7 @@ pub struct ReceiptTxRow {
     pub transaction_hash: String,
     pub tx_block_height: u64,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub tx_block_timestamp: u64,
     pub tx_index: u32,
     pub predecessor_id: String,
@@ -203,12 +385,15 @@ CREATE TABLE local_blocks ON CLUSTER '{cluster}'
  */
 #[serde_as]
 #[derive(Row, Serialize, Deserialize, Clone, Debug)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
 pub struct BlockRow {
     pub block_height: u64,
     pub prev_block_height: Option<u64>,
     pub block_hash: String,
     pub prev_block_hash: String,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub block_timestamp: u64,
     pub epoch_id: String,
     pub next_epoch_id: String,
@@ -216,15 +401,19 @@ pub struct BlockRow {
     pub author_id: String,
     pub protocol_version: u32,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub gas_price: u128,
     pub block_ordinal: Option<u64>,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub total_supply: u128,
     pub num_transactions: u32,
     pub num_receipts: u32,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub gas_burnt: u64,
     #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
     pub tokens_burnt: u128,
 }
 
@@ -233,4 +422,155 @@ pub struct BlockRow {
 pub enum BlockId {
     Hash(CryptoHash),
     Height(BlockHeight),
+}
+
+#[cfg(feature = "openapi")]
+fn tx_hashes_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "array",
+        "items": {
+            "type": "string"
+        },
+        "maxItems": 20
+    })
+}
+
+#[cfg(feature = "openapi")]
+fn raw_transaction_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "object",
+        "additionalProperties": true
+    })
+}
+
+#[cfg(feature = "openapi")]
+fn raw_transaction_array_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut schema = schemars::json_schema!({
+        "type": "array"
+    });
+    schema
+        .ensure_object()
+        .insert("items".into(), raw_transaction_schema(generator).to_value());
+    schema
+}
+
+#[cfg(feature = "openapi")]
+fn nullable_raw_transaction_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut schema = raw_transaction_schema(generator);
+    schema
+        .ensure_object()
+        .insert("nullable".into(), true.into());
+    schema
+}
+
+#[cfg(feature = "openapi")]
+fn block_id_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "string"
+            }
+        ]
+    })
+}
+
+#[cfg(feature = "openapi")]
+fn string_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    <String as schemars::JsonSchema>::json_schema(generator)
+}
+
+#[cfg(feature = "openapi")]
+fn u64_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    <u64 as schemars::JsonSchema>::json_schema(generator)
+}
+
+#[cfg(feature = "openapi")]
+fn block_txs_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    <Vec<BlockTxRow> as schemars::JsonSchema>::json_schema(generator)
+}
+
+#[cfg(feature = "openapi")]
+fn receipt_txs_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    <Vec<ReceiptTxRow> as schemars::JsonSchema>::json_schema(generator)
+}
+
+#[cfg(feature = "openapi")]
+fn nullable_block_row_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut schema = <BlockRow as schemars::JsonSchema>::json_schema(generator);
+    schema
+        .ensure_object()
+        .insert("nullable".into(), true.into());
+    schema
+}
+
+#[cfg(feature = "openapi")]
+fn nullable_receipt_tx_row_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    let mut schema = <ReceiptTxRow as schemars::JsonSchema>::json_schema(generator);
+    schema
+        .ensure_object()
+        .insert("nullable".into(), true.into());
+    schema
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use serde_json::value::RawValue;
+
+    use super::{AccountResponse, ReceiptResponse, TransactionsResponse};
+
+    fn raw(json_source: &str) -> Box<RawValue> {
+        RawValue::from_string(json_source.to_string()).unwrap()
+    }
+
+    #[test]
+    fn account_response_omits_optional_fields_when_absent() {
+        let response = AccountResponse {
+            account_txs: vec![],
+            resume_token: None,
+            txs_count: None,
+        };
+
+        assert_eq!(
+            serde_json::to_value(response).unwrap(),
+            json!({ "account_txs": [] })
+        );
+    }
+
+    #[test]
+    fn transactions_and_receipt_responses_preserve_raw_json_payloads() {
+        let transactions = TransactionsResponse {
+            transactions: vec![raw(r#"{"transaction_hash":"abc","nested":{"ok":true}}"#)],
+        };
+        let receipt = ReceiptResponse {
+            receipt: None,
+            transaction: Some(raw(r#"{"transaction_hash":"abc","nested":{"ok":true}}"#)),
+        };
+
+        assert_eq!(
+            serde_json::to_value(transactions).unwrap(),
+            json!({
+                "transactions": [
+                    {
+                        "transaction_hash": "abc",
+                        "nested": { "ok": true }
+                    }
+                ]
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(receipt).unwrap(),
+            json!({
+                "receipt": null,
+                "transaction": {
+                    "transaction_hash": "abc",
+                    "nested": { "ok": true }
+                }
+            })
+        );
+    }
 }
