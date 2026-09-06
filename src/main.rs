@@ -4,7 +4,7 @@ use std::env;
 use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{middleware, web, App, HttpServer};
-use explorer_api::{api_v0_scope, click::ClickDB, index, skill_md, AppState};
+use explorer_api::{api_v0_scope, click::ClickDB, health, index, skill_md, status, AppState};
 use tracing_subscriber::EnvFilter;
 
 const PROJECT_ID: &str = "server";
@@ -26,6 +26,14 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to connect to Clickhouse");
 
+    // Bound outside the `HttpServer::new` closure: that closure runs once per worker
+    // thread, so building these inside it would give every worker its own start time.
+    let started_at = std::time::Instant::now();
+    let max_lag_seconds = env::var("HEALTH_MAX_LAG_SECONDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(explorer_api::api::DEFAULT_MAX_LAG_SECONDS);
+
     let bind_address = format!("127.0.0.1:{}", env::var("PORT").unwrap());
     tracing::info!(target: PROJECT_ID, "Listening on {}", bind_address);
 
@@ -45,6 +53,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(AppState {
                 click_db: click_db.clone(),
+                started_at,
+                max_lag_seconds,
             }))
             .wrap(cors)
             .wrap(middleware::Logger::new(
@@ -54,6 +64,8 @@ async fn main() -> std::io::Result<()> {
             .service(api_v0_scope())
             .route("/", web::get().to(index))
             .route("/skill.md", web::get().to(skill_md))
+            .route("/health", web::get().to(health))
+            .route("/status", web::get().to(status))
     })
     .bind(bind_address)?
     .run()

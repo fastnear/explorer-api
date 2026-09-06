@@ -5,13 +5,21 @@ pub mod click;
 pub mod openapi;
 pub mod types;
 
+use std::time::Instant;
+
 use actix_web::{web, HttpResponse, Responder, Scope};
 
+pub use crate::api::{health, status};
 use crate::click::ClickDB;
 
 #[derive(Clone)]
 pub struct AppState {
     pub click_db: ClickDB,
+    /// When the server process started, for `/status` uptime. Built once in `main` and
+    /// cloned into every worker, so all workers report the same uptime.
+    pub started_at: Instant,
+    /// Staleness budget for `/health`, in seconds.
+    pub max_lag_seconds: u64,
 }
 
 pub fn api_v0_scope() -> Scope {

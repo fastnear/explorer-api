@@ -1,11 +1,13 @@
 use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use actix_web::{post, ResponseError};
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 
 use crate::types::{
     AccountInput, AccountResponse, ApiError, BlockInput, BlockResponse, BlocksInput,
-    BlocksResponse, ReceiptInput, ReceiptResponse, TransactionsResponse, TxInput,
+    BlocksResponse, HealthResponse, ReceiptInput, ReceiptResponse, StatusResponse,
+    TransactionsResponse, TxInput,
 };
 use crate::AppState;
 
@@ -50,6 +52,136 @@ impl ResponseError for ServiceError {
                 })
             }
         }
+    }
+}
+
+/// Default staleness budget for `/health`, in seconds. NEAR produces a block roughly
+/// every 1.2s, so this trips only when the indexer has genuinely stopped.
+pub const DEFAULT_MAX_LAG_SECONDS: u64 = 60;
+
+/// Why the service is not able to serve fresh data.
+#[derive(Debug)]
+enum Unhealthy {
+    Clickhouse(clickhouse::error::Error),
+    NoBlocks,
+    Stale {
+        lag_seconds: u64,
+        max_lag_seconds: u64,
+    },
+}
+
+/// The numbers `/health` and `/status` share. Both endpoints run the same probe and
+/// differ only in how much of it they print.
+struct Probe {
+    latest_block_height: u64,
+    latest_block_timestamp: u64,
+    latest_tx_block_height: u64,
+    lag_seconds: u64,
+}
+
+fn now_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+}
+
+/// Saturating so that a block timestamp marginally ahead of the local clock reports 0
+/// rather than underflowing.
+fn compute_lag_seconds(block_timestamp_nanos: u64, now_nanos: u128) -> u64 {
+    (now_nanos.saturating_sub(block_timestamp_nanos as u128) / 1_000_000_000) as u64
+}
+
+/// A successful read of `blocks_latest` proves the connection is up, so there is no
+/// separate `SELECT 1` ping on top of it.
+async fn probe(app_state: &AppState) -> Result<Probe, Unhealthy> {
+    let (blocks, latest_tx_block_height) = tokio::try_join!(
+        app_state.click_db.get_blocks(None, None, 1, true),
+        app_state
+            .click_db
+            .latest_height("tx_block_height", "transactions"),
+    )
+    .map_err(Unhealthy::Clickhouse)?;
+
+    let block = blocks.into_iter().next().ok_or(Unhealthy::NoBlocks)?;
+    let latest_tx_block_height = latest_tx_block_height.ok_or(Unhealthy::NoBlocks)?;
+
+    let lag_seconds = compute_lag_seconds(block.block_timestamp, now_nanos());
+    if lag_seconds > app_state.max_lag_seconds {
+        return Err(Unhealthy::Stale {
+            lag_seconds,
+            max_lag_seconds: app_state.max_lag_seconds,
+        });
+    }
+
+    Ok(Probe {
+        latest_block_height: block.block_height,
+        latest_block_timestamp: block.block_timestamp,
+        latest_tx_block_height,
+        lag_seconds,
+    })
+}
+
+impl Unhealthy {
+    /// The 503 body. Kept free of side effects so it can be unit-tested without a
+    /// database; the Clickhouse error itself is logged by `unhealthy_response`.
+    fn body(&self) -> HealthResponse {
+        let (message, lag_seconds) = match self {
+            // The underlying error is logged, not returned, so database internals are
+            // not leaked to callers.
+            Unhealthy::Clickhouse(_) => ("Clickhouse is unreachable".to_string(), None),
+            Unhealthy::NoBlocks => ("No indexed blocks".to_string(), None),
+            Unhealthy::Stale {
+                lag_seconds,
+                max_lag_seconds,
+            } => (
+                format!(
+                    "Indexer is stale: latest block is {}s behind (max {}s)",
+                    lag_seconds, max_lag_seconds
+                ),
+                Some(*lag_seconds),
+            ),
+        };
+
+        HealthResponse {
+            status: "unhealthy".to_string(),
+            lag_seconds,
+            message: Some(message),
+        }
+    }
+}
+
+/// Both endpoints render the same 503 body, so they can never disagree.
+fn unhealthy_response(reason: Unhealthy) -> HttpResponse {
+    if let Unhealthy::Clickhouse(err) = &reason {
+        tracing::error!(target: TARGET_API, "Health check Clickhouse error: {:?}", err);
+    }
+    HttpResponse::ServiceUnavailable().json(reason.body())
+}
+
+pub async fn health(app_state: web::Data<AppState>) -> impl Responder {
+    match probe(&app_state).await {
+        Ok(probe) => HttpResponse::Ok().json(HealthResponse {
+            status: "ok".to_string(),
+            lag_seconds: Some(probe.lag_seconds),
+            message: None,
+        }),
+        Err(reason) => unhealthy_response(reason),
+    }
+}
+
+pub async fn status(app_state: web::Data<AppState>) -> impl Responder {
+    match probe(&app_state).await {
+        Ok(probe) => HttpResponse::Ok().json(StatusResponse {
+            status: "ok".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            uptime_seconds: app_state.started_at.elapsed().as_secs(),
+            latest_block_height: probe.latest_block_height,
+            latest_block_timestamp: probe.latest_block_timestamp,
+            lag_seconds: probe.lag_seconds,
+            latest_tx_block_height: probe.latest_tx_block_height,
+        }),
+        Err(reason) => unhealthy_response(reason),
     }
 }
 
@@ -313,5 +445,68 @@ pub mod v0 {
             receipt,
             transaction,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_web::http::StatusCode;
+
+    use super::{compute_lag_seconds, unhealthy_response, Unhealthy};
+
+    const NANOS_PER_SEC: u128 = 1_000_000_000;
+
+    #[test]
+    fn lag_is_whole_seconds_behind_the_clock() {
+        let block = 1_700_000_000u64 * NANOS_PER_SEC as u64;
+        let now = block as u128 + 42 * NANOS_PER_SEC + 500_000_000;
+        assert_eq!(compute_lag_seconds(block, now), 42);
+    }
+
+    #[test]
+    fn lag_is_zero_when_the_block_is_ahead_of_the_clock() {
+        let block = 1_700_000_000u64 * NANOS_PER_SEC as u64;
+        let now = block as u128 - 5 * NANOS_PER_SEC;
+        assert_eq!(compute_lag_seconds(block, now), 0);
+    }
+
+    #[test]
+    fn stale_body_reports_the_lag_and_the_threshold() {
+        let body = Unhealthy::Stale {
+            lag_seconds: 120,
+            max_lag_seconds: 60,
+        }
+        .body();
+
+        assert_eq!(body.status, "unhealthy");
+        assert_eq!(body.lag_seconds, Some(120));
+        let message = body.message.unwrap();
+        assert!(message.contains("120s"), "{}", message);
+        assert!(message.contains("60s"), "{}", message);
+    }
+
+    #[test]
+    fn no_blocks_body_has_no_lag_to_report() {
+        let body = Unhealthy::NoBlocks.body();
+
+        assert_eq!(body.status, "unhealthy");
+        assert_eq!(body.lag_seconds, None);
+        assert_eq!(body.message.unwrap(), "No indexed blocks");
+    }
+
+    #[test]
+    fn unhealthy_reasons_render_503() {
+        assert_eq!(
+            unhealthy_response(Unhealthy::NoBlocks).status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        assert_eq!(
+            unhealthy_response(Unhealthy::Stale {
+                lag_seconds: 120,
+                max_lag_seconds: 60,
+            })
+            .status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
     }
 }

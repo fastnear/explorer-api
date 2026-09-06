@@ -169,6 +169,43 @@ pub struct ReceiptResponse {
     pub transaction: Option<Box<RawValue>>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct HealthResponse {
+    /// "ok" when ClickHouse is reachable and the indexer is fresh, "unhealthy" otherwise.
+    pub status: String,
+    /// How far the latest indexed block lags behind the local clock, in seconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lag_seconds: Option<u64>,
+    /// Why the service is unhealthy; absent when healthy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
+pub struct StatusResponse {
+    /// Always "ok"; an unhealthy server answers with `HealthResponse` and a 503 instead.
+    pub status: String,
+    /// Server crate version.
+    pub version: String,
+    /// Seconds since the server process started.
+    pub uptime_seconds: u64,
+    /// Height of the most recently indexed block.
+    pub latest_block_height: u64,
+    /// Timestamp of the most recently indexed block, in nanoseconds since the epoch.
+    #[serde_as(serialize_as = "DisplayFromStr", deserialize_as = "_")]
+    #[cfg_attr(feature = "openapi", schemars(with = "String"))]
+    pub latest_block_timestamp: u64,
+    /// How far the latest indexed block lags behind the local clock, in seconds.
+    pub lag_seconds: u64,
+    /// Height of the most recent block that has indexed transactions.
+    pub latest_tx_block_height: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "openapi", schemars(deny_unknown_fields))]
