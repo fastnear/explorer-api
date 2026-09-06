@@ -27,6 +27,24 @@ impl ClickDB {
         Ok(block_height)
     }
 
+    /// Cheapest "how far did the indexer get" probe for a table whose primary key
+    /// starts with `column`: reads a single granule from the end of the sort order,
+    /// unlike `max()`, which scans the whole column.
+    pub async fn latest_height(
+        &self,
+        column: &str,
+        table: &str,
+    ) -> clickhouse::error::Result<Option<BlockHeight>> {
+        let rows = self
+            .client
+            .query(&format!(
+                "SELECT {column} FROM {table} ORDER BY {column} DESC LIMIT 1"
+            ))
+            .fetch_all::<u64>()
+            .await?;
+        Ok(rows.into_iter().next())
+    }
+
     pub async fn verify_connection(&self) -> clickhouse::error::Result<()> {
         self.client.query("SELECT 1").execute().await?;
         Ok(())
