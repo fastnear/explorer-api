@@ -1,6 +1,5 @@
-use clickhouse::{Client, Row};
+use clickhouse::{Client, RowOwned, RowRead};
 use near_primitives::types::{AccountId, BlockHeight};
-use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 use std::env;
 
@@ -52,7 +51,7 @@ impl ClickDB {
 
     pub async fn read_rows<T>(&self, query: &str) -> clickhouse::error::Result<Vec<T>>
     where
-        T: Row + DeserializeOwned,
+        T: RowOwned + RowRead,
     {
         let rows = self.client.query(query).fetch_all::<T>().await?;
         Ok(rows)
@@ -318,4 +317,7 @@ fn establish_connection() -> Client {
         .with_user(env::var("DATABASE_USER").unwrap())
         .with_password(env::var("DATABASE_PASSWORD").unwrap())
         .with_database(env::var("DATABASE_DATABASE").unwrap())
+        // clickhouse >= 0.14 validates rows against the server schema by default, which
+        // rejects e.g. DateTime64 read into u64. Keep plain RowBinary like before.
+        .with_validation(false)
 }
